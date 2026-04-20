@@ -37,6 +37,10 @@ pnpm-debug.log*
 
 # Testing
 coverage/
+# Playwright
+playwright-report/
+test-results/
+apps/web/tests/.auth/admin.json
 
 # Prisma
 *.db

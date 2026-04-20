@@ -19,6 +19,15 @@
     },
     "generate": {
       "cache": false
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "tests/**", "*.config.*"],
+      "outputs": ["coverage/**", "playwright-report/**"]
+    },
+    "test:e2e": {
+      "cache": false,
+      "inputs": ["tests/**", "playwright.config.*"]
     }
   }
 }

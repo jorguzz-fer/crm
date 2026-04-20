@@ -61,3 +61,33 @@ jobs:
 
       - name: Prisma validate
         run: node_modules/.bin/prisma validate --schema=packages/db/prisma/schema.prisma
+
+      - name: Unit tests (Vitest — validators)
+        run: pnpm --filter @crm/validators run test
+
+  # ─── E2E (Playwright) — job separado, roda em staging/CD ──────────────────
+  # Para rodar localmente: E2E_ADMIN_EMAIL=... E2E_ADMIN_PASSWORD=... pnpm test:e2e
+  # Em CI, configure as secrets E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD e
+  # E2E_BASE_URL apontando para o ambiente de staging com banco seedado.
+  # Este job está comentado por default para não bloquear PRs sem staging.
+  # e2e:
+  #   runs-on: ubuntu-latest
+  #   needs: ci
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: pnpm/action-setup@v4
+  #     - uses: actions/setup-node@v4
+  #       with: { node-version: 22, cache: "pnpm" }
+  #     - run: pnpm install --no-frozen-lockfile
+  #     - run: pnpm --filter @crm/web exec playwright install --with-deps chromium
+  #     - run: pnpm --filter @crm/web run test:e2e
+  #       env:
+  #         E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+  #         E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+  #         E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+  #     - uses: actions/upload-artifact@v4
+  #       if: failure()
+  #       with:
+  #         name: playwright-report
+  #         path: apps/web/playwright-report/
+  #         retention-days: 7
