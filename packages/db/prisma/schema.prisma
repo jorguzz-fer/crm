@@ -10,7 +10,6 @@ datasource db {
 }
 
 // ─── Fase 1: auth multi-tenant ────────────────────────────────────────────────
-// Fase 2: adicionar Lead, Account, Contact, Opportunity, Activity, Task, Pipeline, Stage, Note, Attachment
 
 model Tenant {
   id        String   @id @default(cuid())
@@ -21,9 +20,18 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users       User[]
-  memberships Membership[]
-  auditLogs   AuditLog[]
+  users         User[]
+  memberships   Membership[]
+  auditLogs     AuditLog[]
+  leads         Lead[]
+  companies     Company[]
+  contacts      Contact[]
+  pipelines     Pipeline[]
+  stages        Stage[]
+  opportunities Opportunity[]
+  activities    Activity[]
+  tasks         Task[]
+  notes         Note[]
 
   @@index([slug])
 }
@@ -41,17 +49,22 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  memberships Membership[]
-  accounts    Account[]
-  sessions    Session[]
-  auditLogs   AuditLog[]
+  tenant                Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberships           Membership[]
+  accounts              Account[]
+  sessions              Session[]
+  auditLogs             AuditLog[]
+  leadsAssigned         Lead[]        @relation("LeadAssignee")
+  opportunitiesAssigned Opportunity[] @relation("OpportunityAssignee")
+  activities            Activity[]    @relation("ActivityUser")
+  tasksAssigned         Task[]        @relation("TaskAssignee")
+  notes                 Note[]        @relation("NoteAuthor")
 
   @@index([tenantId])
   @@index([email])
 }
 
-// Auth.js v5 — adapter relations
+// Auth.js v5 — OAuth provider accounts
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -91,7 +104,6 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// RBAC — roles disponíveis por tenant
 enum Role {
   SUPERADMIN
   ADMIN
@@ -100,7 +112,6 @@ enum Role {
   VIEWER
 }
 
-// Membership permite que um usuário seja membro de múltiplos tenants (futuro)
 model Membership {
   id       String @id @default(cuid())
   tenantId String
@@ -131,4 +142,258 @@ model AuditLog {
 
   @@index([tenantId, createdAt])
   @@index([entity, entityId])
+}
+
+// ─── Fase 2: CRM core ─────────────────────────────────────────────────────────
+
+enum LeadStatus {
+  NOVO
+  EM_CONTATO
+  QUALIFICADO
+  DESQUALIFICADO
+  CONVERTIDO
+}
+
+enum LeadSource {
+  WEBSITE
+  WHATSAPP
+  INSTAGRAM
+  FACEBOOK
+  INDICACAO
+  EVENTO
+  COLD_OUTREACH
+  OUTRO
+}
+
+enum OpportunityStatus {
+  ABERTA
+  GANHA
+  PERDIDA
+}
+
+enum ActivityType {
+  LIGACAO
+  EMAIL
+  REUNIAO
+  WHATSAPP
+  VISITA
+  OUTRO
+}
+
+enum Priority {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+model Lead {
+  id         String     @id @default(cuid())
+  tenantId   String
+  name       String
+  email      String?
+  phone      String?
+  company    String?
+  source     LeadSource @default(OUTRO)
+  status     LeadStatus @default(NOVO)
+  assignedTo String?
+  companyId  String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignee      User?         @relation("LeadAssignee", fields: [assignedTo], references: [id])
+  companyRecord Company?      @relation(fields: [companyId], references: [id])
+  notes         Note[]
+  activities    Activity[]
+  tasks         Task[]
+  opportunities Opportunity[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, assignedTo])
+  @@index([tenantId, createdAt])
+}
+
+model Company {
+  id       String  @id @default(cuid())
+  tenantId String
+  name     String
+  cnpj     String?
+  website  String?
+  phone    String?
+  email    String?
+  industry String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contacts      Contact[]
+  leads         Lead[]
+  opportunities Opportunity[]
+  notes         Note[]
+  activities    Activity[]
+
+  @@index([tenantId, name])
+}
+
+model Contact {
+  id        String  @id @default(cuid())
+  tenantId  String
+  companyId String?
+  name      String
+  email     String?
+  phone     String?
+  role      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company       Company?      @relation(fields: [companyId], references: [id])
+  notes         Note[]
+  activities    Activity[]
+  opportunities Opportunity[]
+
+  @@index([tenantId, name])
+  @@index([tenantId, companyId])
+}
+
+model Pipeline {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stages        Stage[]
+  opportunities Opportunity[]
+
+  @@index([tenantId])
+}
+
+model Stage {
+  id         String @id @default(cuid())
+  tenantId   String
+  pipelineId String
+  name       String
+  order      Int
+  color      String @default("#6366f1")
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline      Pipeline      @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  opportunities Opportunity[]
+
+  @@index([tenantId, pipelineId, order])
+}
+
+model Opportunity {
+  id              String            @id @default(cuid())
+  tenantId        String
+  pipelineId      String
+  stageId         String
+  leadId          String?
+  companyId       String?
+  contactId       String?
+  assignedTo      String?
+  title           String
+  value           Decimal?          @db.Decimal(15, 2)
+  currency        String            @default("BRL")
+  probability     Int               @default(0)
+  status          OpportunityStatus @default(ABERTA)
+  expectedCloseAt DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id])
+  stage    Stage    @relation(fields: [stageId], references: [id])
+  lead     Lead?    @relation(fields: [leadId], references: [id])
+  company  Company? @relation(fields: [companyId], references: [id])
+  contact  Contact? @relation(fields: [contactId], references: [id])
+  assignee User?    @relation("OpportunityAssignee", fields: [assignedTo], references: [id])
+  notes    Note[]
+  activities Activity[]
+  tasks    Task[]
+
+  @@index([tenantId, stageId])
+  @@index([tenantId, pipelineId])
+  @@index([tenantId, status])
+  @@index([tenantId, assignedTo])
+}
+
+model Activity {
+  id            String       @id @default(cuid())
+  tenantId      String
+  userId        String
+  type          ActivityType
+  subject       String
+  description   String?
+  duration      Int?
+  occurredAt    DateTime     @default(now())
+  leadId        String?
+  companyId     String?
+  contactId     String?
+  opportunityId String?
+  createdAt     DateTime     @default(now())
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User         @relation("ActivityUser", fields: [userId], references: [id])
+  lead        Lead?        @relation(fields: [leadId], references: [id])
+  company     Company?     @relation(fields: [companyId], references: [id])
+  contact     Contact?     @relation(fields: [contactId], references: [id])
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+
+  @@index([tenantId, occurredAt])
+  @@index([tenantId, leadId])
+  @@index([tenantId, opportunityId])
+  @@index([tenantId, userId])
+}
+
+model Task {
+  id            String    @id @default(cuid())
+  tenantId      String
+  assignedTo    String
+  title         String
+  description   String?
+  dueAt         DateTime?
+  completedAt   DateTime?
+  priority      Priority  @default(MEDIA)
+  leadId        String?
+  opportunityId String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignee    User         @relation("TaskAssignee", fields: [assignedTo], references: [id])
+  lead        Lead?        @relation(fields: [leadId], references: [id])
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+
+  @@index([tenantId, assignedTo, dueAt])
+  @@index([tenantId, leadId])
+  @@index([tenantId, opportunityId])
+}
+
+model Note {
+  id            String   @id @default(cuid())
+  tenantId      String
+  userId        String
+  content       String
+  leadId        String?
+  companyId     String?
+  contactId     String?
+  opportunityId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User         @relation("NoteAuthor", fields: [userId], references: [id])
+  lead        Lead?        @relation(fields: [leadId], references: [id])
+  company     Company?     @relation(fields: [companyId], references: [id])
+  contact     Contact?     @relation(fields: [contactId], references: [id])
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, opportunityId])
 }
