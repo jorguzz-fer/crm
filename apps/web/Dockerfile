@@ -71,7 +71,10 @@ COPY --from=builder /app/apps/web/migrate.js ./migrate.js
 # NÃO copia o Prisma CLI (.bin/prisma) — symlink quebra WASM + 30+ deps ausentes
 # Copia apenas @prisma/ para o PrismaClient funcionar no migrate.js
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# bcryptjs necessário para scripts de seed/admin
+COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 
+COPY --from=builder /app/apps/web/create-superadmin.js ./create-superadmin.js
 COPY --chown=nextjs:nodejs apps/web/entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh
 
