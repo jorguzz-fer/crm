@@ -3,4 +3,4 @@ set -e
 echo "→ Rodando migrations do Prisma..."
 node /app/migrate.js
 echo "→ Iniciando app..."
-exec node server.js
+exec node apps/web/server.js
