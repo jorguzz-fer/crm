@@ -17,6 +17,14 @@ COPY packages/ui/package.json ./packages/ui/
 
 RUN pnpm install --no-frozen-lockfile
 
+# Copia source dos packages workspace DEPOIS do install
+# Docker dereferenceia symlinks pnpm durante COPY --from, então o source
+# precisa estar presente na stage deps para node_modules/@crm/* ter src/
+COPY packages/db/src ./packages/db/src
+COPY packages/validators/src ./packages/validators/src
+COPY packages/ai/src ./packages/ai/src
+COPY packages/ui/src ./packages/ui/src
+
 # ─── Stage 2: builder ────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
 WORKDIR /app
