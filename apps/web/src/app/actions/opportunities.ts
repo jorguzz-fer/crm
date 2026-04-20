@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@crm/db";
 import { requireRole, ROLES_WRITE, ROLES_MANAGE } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
-import { createOpportunitySchema, moveOpportunitySchema } from "@crm/validators";
+import { createOpportunitySchema } from "@crm/validators";
 
 export type ActionState = { error: string } | { success: true } | null;
 
