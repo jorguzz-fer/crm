@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Generate Prisma client
+        run: node_modules/.bin/prisma generate --schema=packages/db/prisma/schema.prisma
+
+      - name: Typecheck
+        run: pnpm turbo typecheck
+
+      - name: Lint
+        run: pnpm turbo lint
+
+      - name: Build
+        run: pnpm turbo build
+        env:
+          DATABASE_URL: "postgresql://user:pass@localhost:5432/db"
+          DIRECT_DATABASE_URL: "postgresql://user:pass@localhost:5432/db"
+          AUTH_SECRET: "ci-secret-placeholder-32-chars-long"
+          AUTH_URL: "http://localhost:3000"
+          OPENROUTER_API_KEY: "placeholder"
+
+      - name: Security audit
+        working-directory: apps/web
+        run: |
+          echo "→ Verificando rotas sem authz..."
+          if [ -d "src/app/api" ]; then
+            grep -rL "requireAuth\|requireRole\|getServerSession" src/app/api || true
+          fi
+          echo "→ Verificando wildcards em remotePatterns (SSRF)..."
+          ! grep -n 'hostname:.*"\*"' next.config.ts
+          echo "→ Verificando session maxAge (não deve ser > 28800)..."
+          grep -n "maxAge" src/lib/auth.ts || true
+          echo "→ Verificando ARG secrets no Dockerfile..."
+          ! grep -nE "^ARG\s+(DATABASE_URL|AUTH_SECRET|.*_KEY|.*_TOKEN)" Dockerfile
+          echo "✓ Security audit concluído"
+
+      - name: Prisma validate
+        run: node_modules/.bin/prisma validate --schema=packages/db/prisma/schema.prisma

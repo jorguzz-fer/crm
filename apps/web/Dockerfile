@@ -1,0 +1,64 @@
+# ─── Stage 1: deps ───────────────────────────────────────────────────────────
+# NODE_ENV=development necessário para instalar devDependencies (prisma CLI, typescript)
+# NÃO use NODE_ENV=development no builder — causa erro <Html> no prerender (Auth.js + React SSR)
+FROM node:22-alpine AS deps
+WORKDIR /app
+ENV NODE_ENV=development
+RUN apk add --no-cache libc6-compat
+RUN npm install -g pnpm@10
+
+# Copia manifests de todos os workspaces para layer caching
+COPY package.json pnpm-workspace.yaml .npmrc ./
+COPY apps/web/package.json ./apps/web/
+COPY packages/db/package.json ./packages/db/
+COPY packages/validators/package.json ./packages/validators/
+COPY packages/ai/package.json ./packages/ai/
+COPY packages/ui/package.json ./packages/ui/
+
+RUN pnpm install --no-frozen-lockfile
+
+# ─── Stage 2: builder ────────────────────────────────────────────────────────
+FROM node:22-alpine AS builder
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN apk add --no-cache libc6-compat
+RUN npm install -g pnpm@10
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# usa binary local — NÃO usa npx (baixaria Prisma v7 quebrando o schema v6)
+RUN node_modules/.bin/prisma generate --schema=packages/db/prisma/schema.prisma
+
+# Build apenas o app web
+RUN pnpm --filter @crm/web run build
+
+# ─── Stage 3: runner ─────────────────────────────────────────────────────────
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/apps/web/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
+
+# Migrations para o migrate.js
+COPY --from=builder /app/packages/db/prisma/migrations ./prisma/migrations
+COPY --from=builder /app/apps/web/migrate.js ./migrate.js
+
+# NÃO copia o Prisma CLI (.bin/prisma) — symlink quebra WASM + 30+ deps ausentes
+# Copia apenas @prisma/ para o PrismaClient funcionar no migrate.js
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+COPY --chown=nextjs:nodejs apps/web/entrypoint.sh ./entrypoint.sh
+RUN chmod +x entrypoint.sh
+
+USER nextjs
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+CMD ["./entrypoint.sh"]
