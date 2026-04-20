@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { loginAction } from "@/app/actions/auth";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 export function LoginForm({ signupSuccess }: { signupSuccess?: boolean }) {
   const [state, action, pending] = useActionState(loginAction, null);
@@ -42,13 +43,11 @@ export function LoginForm({ signupSuccess }: { signupSuccess?: boolean }) {
           <label htmlFor="password" className="text-sm font-medium">
             Senha
           </label>
-          <input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             autoComplete="current-password"
             required
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             placeholder="••••••••••"
           />
         </div>
