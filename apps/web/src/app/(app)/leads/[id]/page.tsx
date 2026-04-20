@@ -7,6 +7,8 @@ import { ArrowLeft, Pencil, Mail, Phone, Building2, Tag, User } from "lucide-rea
 import { LeadStatusBadge } from "@/components/leads/LeadStatusBadge";
 import { AddNoteForm } from "@/components/leads/AddNoteForm";
 import { deleteLeadAction } from "@/app/actions/leads";
+import { SummarizeButton } from "@/components/ai/SummarizeButton";
+import { summarizeLeadAction } from "@/app/actions/ai";
 
 const SOURCE_LABELS: Record<string, string> = {
   WEBSITE: "Website", WHATSAPP: "WhatsApp", INSTAGRAM: "Instagram",
@@ -146,6 +148,11 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
         {/* Timeline */}
         <div className="lg:col-span-2 space-y-4">
+          <SummarizeButton
+            action={summarizeLeadAction}
+            fieldName="leadId"
+            entityId={lead.id}
+          />
           <AddNoteForm leadId={lead.id} />
 
           <div className="rounded-lg border border-border bg-card">

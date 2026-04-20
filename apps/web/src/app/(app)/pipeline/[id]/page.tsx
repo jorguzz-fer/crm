@@ -9,6 +9,8 @@ import {
 import { deleteOpportunityAction } from "@/app/actions/opportunities";
 import { OpportunityStatusForm } from "@/components/pipeline/OpportunityStatusForm";
 import { AddOpportunityNoteForm } from "@/components/pipeline/AddOpportunityNoteForm";
+import { SummarizeButton } from "@/components/ai/SummarizeButton";
+import { summarizeOpportunityAction } from "@/app/actions/ai";
 
 const ACTIVITY_LABELS: Record<string, string> = {
   LIGACAO: "Ligação", EMAIL: "E-mail", REUNIAO: "Reunião",
@@ -226,6 +228,11 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
 
         {/* Right: timeline */}
         <div className="lg:col-span-2 space-y-4">
+          <SummarizeButton
+            action={summarizeOpportunityAction}
+            fieldName="opportunityId"
+            entityId={opp.id}
+          />
           <AddOpportunityNoteForm opportunityId={opp.id} />
 
           <div className="rounded-lg border border-border bg-card">

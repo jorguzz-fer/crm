@@ -21,3 +21,6 @@ export const MODELS = {
 } as const;
 
 export type ModelKey = keyof typeof MODELS;
+
+export { summarize } from "./assistants/summarize";
+export type { SummaryResult } from "./assistants/summarize";

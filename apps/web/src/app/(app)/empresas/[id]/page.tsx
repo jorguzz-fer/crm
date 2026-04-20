@@ -3,7 +3,7 @@ import { prisma } from "@crm/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft, Globe, Mail, Phone, Hash, Briefcase, User } from "lucide-react";
+import { ArrowLeft, Globe, Mail, Phone, Hash, Briefcase, User, Pencil } from "lucide-react";
 import { deleteCompanyAction } from "@/app/actions/companies";
 import { AddCompanyNoteForm } from "@/components/companies/AddCompanyNoteForm";
 
@@ -49,15 +49,24 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             )}
           </div>
         </div>
-        <form action={deleteCompanyAction} className="shrink-0">
-          <input type="hidden" name="id" value={company.id} />
-          <button
-            type="submit"
-            className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href={`/empresas/${company.id}/edit`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-accent"
           >
-            Excluir
-          </button>
-        </form>
+            <Pencil size={14} />
+            Editar
+          </Link>
+          <form action={deleteCompanyAction}>
+            <input type="hidden" name="id" value={company.id} />
+            <button
+              type="submit"
+              className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+            >
+              Excluir
+            </button>
+          </form>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
