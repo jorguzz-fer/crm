@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@crm/db";
+import type { OpportunityStatus } from "@crm/db";
 import { requireRole, ROLES_WRITE, ROLES_MANAGE } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 import { createOpportunitySchema } from "@crm/validators";
@@ -135,4 +136,82 @@ export async function deleteOpportunityAction(formData: FormData): Promise<void>
 
   revalidatePath("/pipeline");
   redirect("/pipeline");
+}
+
+export async function updateOpportunityStatusAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { session, error } = await requireRole(ROLES_WRITE);
+  if (error) return { error: "Sem permissão" };
+
+  const id = formData.get("id") as string;
+  const status = formData.get("status") as string;
+
+  if (!id || !["GANHA", "PERDIDA", "ABERTA"].includes(status)) {
+    return { error: "Dados inválidos" };
+  }
+
+  const tenantId = session!.user.tenantId;
+  const opp = await prisma.opportunity.findFirst({
+    where: { id, tenantId },
+    select: { id: true, title: true, status: true },
+  });
+  if (!opp) return { error: "Oportunidade não encontrada" };
+
+  await prisma.opportunity.update({
+    where: { id },
+    data: {
+      status: status as OpportunityStatus,
+      closedAt: status !== "ABERTA" ? new Date() : null,
+    },
+  });
+
+  await logAudit({
+    tenantId,
+    userId: session!.user.id,
+    action: "opportunity.status",
+    entity: "Opportunity",
+    entityId: id,
+    meta: { from: opp.status, to: status },
+  });
+
+  revalidatePath(`/pipeline/${id}`);
+  revalidatePath("/pipeline");
+  return { success: true };
+}
+
+export async function addOpportunityNoteAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { session, error } = await requireRole(ROLES_WRITE);
+  if (error) return { error: "Sem permissão" };
+
+  const opportunityId = formData.get("opportunityId") as string;
+  const content = (formData.get("content") as string)?.trim();
+
+  if (!opportunityId || !content) return { error: "Conteúdo obrigatório" };
+
+  const tenantId = session!.user.tenantId;
+  const opp = await prisma.opportunity.findFirst({
+    where: { id: opportunityId, tenantId },
+    select: { id: true },
+  });
+  if (!opp) return { error: "Oportunidade não encontrada" };
+
+  await prisma.note.create({
+    data: { tenantId, userId: session!.user.id, content, opportunityId },
+  });
+
+  await logAudit({
+    tenantId,
+    userId: session!.user.id,
+    action: "note.create",
+    entity: "Note",
+    meta: { opportunityId },
+  });
+
+  revalidatePath(`/pipeline/${opportunityId}`);
+  return { success: true };
 }
