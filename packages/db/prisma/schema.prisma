@@ -8,8 +8,7 @@ datasource db {
   directUrl = env("DIRECT_DATABASE_URL")
 }
 
-// ─── Fase 0: schema base ──────────────────────────────────────────────────────
-// Fase 1: adicionar User, Membership, Role, AuditLog, consent_log
+// ─── Fase 1: auth multi-tenant ────────────────────────────────────────────────
 // Fase 2: adicionar Lead, Account, Contact, Opportunity, Activity, Task, Pipeline, Stage, Note, Attachment
 
 model Tenant {
@@ -21,5 +20,114 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  users       User[]
+  memberships Membership[]
+  auditLogs   AuditLog[]
+
   @@index([slug])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  tenantId      String
+  name          String
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  active        Boolean   @default(true)
+  role          Role      @default(ANALYST)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberships Membership[]
+  accounts    Account[]
+  sessions    Session[]
+  auditLogs   AuditLog[]
+
+  @@index([tenantId])
+  @@index([email])
+}
+
+// Auth.js v5 — adapter relations
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// RBAC — roles disponíveis por tenant
+enum Role {
+  SUPERADMIN
+  ADMIN
+  SUPERVISOR
+  ANALYST
+  VIEWER
+}
+
+// Membership permite que um usuário seja membro de múltiplos tenants (futuro)
+model Membership {
+  id       String @id @default(cuid())
+  tenantId String
+  userId   String
+  role     Role   @default(ANALYST)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  action    String
+  entity    String
+  entityId  String?
+  meta      Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([entity, entityId])
 }

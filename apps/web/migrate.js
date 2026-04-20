@@ -1,22 +1,25 @@
 "use strict";
 const { PrismaClient } = require("@prisma/client");
-const { readFileSync } = require("fs");
+const { readFileSync, existsSync } = require("fs");
 const { join } = require("path");
 
-async function main() {
-  const prisma = new PrismaClient();
-  try {
-    await prisma.$queryRaw`SELECT 1 FROM "Tenant" LIMIT 1`;
-    console.log("✓ Schema já existe — pulando migration");
-    await prisma.$disconnect();
-    return;
-  } catch (_) {}
+// Lista ordenada de migrations — adicione novas entradas ao final
+const MIGRATIONS = [
+  { name: "0001_init", check: `SELECT 1 FROM "Tenant" LIMIT 1` },
+  { name: "0002_auth_models", check: `SELECT 1 FROM "User" LIMIT 1` },
+];
 
-  console.log("→ Aplicando schema inicial...");
-  const sql = readFileSync(
-    join(__dirname, "prisma/migrations/0001_init/migration.sql"),
-    "utf8"
-  );
+async function applyMigration(prisma, name) {
+  const sqlPath = join(__dirname, `prisma/migrations/${name}/migration.sql`);
+  if (!existsSync(sqlPath)) {
+    console.warn(`⚠ Migration ${name} não encontrada — pulando`);
+    return;
+  }
+
+  console.log(`→ Aplicando ${name}...`);
+  const sql = readFileSync(sqlPath, "utf8");
+
+  // Remove comentários de linha, divide em statements
   const statements = sql
     .replace(/--[^\n]*/g, "")
     .split(";")
@@ -27,11 +30,34 @@ async function main() {
     try {
       await prisma.$executeRawUnsafe(stmt);
     } catch (e) {
+      // Ignora "already exists" para idempotência
       if (!e.message.includes("already exists")) throw e;
     }
   }
-  console.log("✓ Schema aplicado");
-  await prisma.$disconnect();
+  console.log(`✓ ${name} aplicada`);
+}
+
+async function main() {
+  const prisma = new PrismaClient();
+
+  try {
+    for (const { name, check } of MIGRATIONS) {
+      let exists = false;
+      try {
+        await prisma.$executeRawUnsafe(check);
+        exists = true;
+      } catch (_) {}
+
+      if (!exists) {
+        await applyMigration(prisma, name);
+      } else {
+        console.log(`✓ ${name} já aplicada`);
+      }
+    }
+    console.log("✓ Todas as migrations concluídas");
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 main().catch((e) => {

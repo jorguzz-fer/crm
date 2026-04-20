@@ -1,5 +1,4 @@
-// TODO Fase 1: substituir pelo logAudit com prisma.auditLog.create()
-// quando o modelo AuditLog for adicionado ao schema (Fase 1)
+import { prisma } from "@crm/db";
 
 interface AuditEntry {
   tenantId: string;
@@ -13,10 +12,17 @@ interface AuditEntry {
 
 export async function logAudit(entry: AuditEntry) {
   try {
-    // Fase 0: log estruturado no console até AuditLog ser criado no schema
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[audit]", JSON.stringify(entry));
-    }
+    await prisma.auditLog.create({
+      data: {
+        tenantId: entry.tenantId,
+        userId: entry.userId,
+        action: entry.action,
+        entity: entry.entity,
+        entityId: entry.entityId ?? null,
+        meta: entry.meta ? JSON.parse(JSON.stringify(entry.meta)) : undefined,
+        ip: entry.ip ?? null,
+      },
+    });
   } catch (err) {
     // Nunca deixa auditoria quebrar a request
     console.error("[audit] failed to write audit log", err);
