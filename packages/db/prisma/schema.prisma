@@ -20,18 +20,20 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users         User[]
-  memberships   Membership[]
-  auditLogs     AuditLog[]
-  leads         Lead[]
-  companies     Company[]
-  contacts      Contact[]
-  pipelines     Pipeline[]
-  stages        Stage[]
-  opportunities Opportunity[]
-  activities    Activity[]
-  tasks         Task[]
-  notes         Note[]
+  users          User[]
+  memberships    Membership[]
+  auditLogs      AuditLog[]
+  leads          Lead[]
+  companies      Company[]
+  contacts       Contact[]
+  pipelines      Pipeline[]
+  stages         Stage[]
+  opportunities  Opportunity[]
+  activities     Activity[]
+  tasks          Task[]
+  notes          Note[]
+  consentRecords ConsentRecord[]
+  dataRequests   DataRequest[]
 
   @@index([slug])
 }
@@ -54,11 +56,14 @@ model User {
   accounts              Account[]
   sessions              Session[]
   auditLogs             AuditLog[]
-  leadsAssigned         Lead[]        @relation("LeadAssignee")
-  opportunitiesAssigned Opportunity[] @relation("OpportunityAssignee")
-  activities            Activity[]    @relation("ActivityUser")
-  tasksAssigned         Task[]        @relation("TaskAssignee")
-  notes                 Note[]        @relation("NoteAuthor")
+  leadsAssigned         Lead[]          @relation("LeadAssignee")
+  opportunitiesAssigned Opportunity[]   @relation("OpportunityAssignee")
+  activities            Activity[]      @relation("ActivityUser")
+  tasksAssigned         Task[]          @relation("TaskAssignee")
+  notes                 Note[]          @relation("NoteAuthor")
+  consentCollected      ConsentRecord[] @relation("ConsentCollector")
+  dataRequestsMade      DataRequest[]   @relation("DataRequestRequester")
+  dataRequestsProcessed DataRequest[]   @relation("DataRequestProcessor")
 
   @@index([tenantId])
   @@index([email])
@@ -110,6 +115,25 @@ enum Role {
   SUPERVISOR
   ANALYST
   VIEWER
+}
+
+enum ConsentBasis {
+  CONTRATO
+  LEGITIMO_INTERESSE
+  CONSENTIMENTO
+  OBRIGACAO_LEGAL
+}
+
+enum DataRequestType {
+  EXPORT
+  DELETE
+}
+
+enum DataRequestStatus {
+  PENDENTE
+  APROVADO
+  REJEITADO
+  CONCLUIDO
 }
 
 model Membership {
@@ -194,12 +218,13 @@ model Lead {
   email      String?
   phone      String?
   company    String?
-  source     LeadSource @default(OUTRO)
-  status     LeadStatus @default(NOVO)
-  assignedTo String?
-  companyId  String?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  source       LeadSource @default(OUTRO)
+  status       LeadStatus @default(NOVO)
+  assignedTo   String?
+  companyId    String?
+  anonymizedAt DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   assignee      User?         @relation("LeadAssignee", fields: [assignedTo], references: [id])
@@ -239,16 +264,17 @@ model Company {
 model Contact {
   id        String  @id @default(cuid())
   tenantId  String
-  companyId String?
-  name      String
-  email     String?
-  phone     String?
-  role      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  companyId    String?
+  name         String
+  email        String?
+  phone        String?
+  role         String?
+  anonymizedAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  company       Company?      @relation(fields: [companyId], references: [id])
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id])
   notes         Note[]
   activities    Activity[]
   opportunities Opportunity[]
@@ -396,4 +422,49 @@ model Note {
 
   @@index([tenantId, leadId])
   @@index([tenantId, opportunityId])
+}
+
+// ─── Fase 6: LGPD ─────────────────────────────────────────────────────────────
+
+model ConsentRecord {
+  id          String       @id @default(cuid())
+  tenantId    String
+  entityType  String       // "LEAD" | "CONTACT"
+  entityId    String
+  entityName  String
+  basis       ConsentBasis
+  notes       String?
+  collectedBy String
+  collectedAt DateTime     @default(now())
+  revokedAt   DateTime?
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  collector User   @relation("ConsentCollector", fields: [collectedBy], references: [id])
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, collectedAt])
+}
+
+model DataRequest {
+  id          String            @id @default(cuid())
+  tenantId    String
+  type        DataRequestType
+  entityType  String            // "LEAD" | "CONTACT"
+  entityId    String
+  entityName  String
+  requestedBy String
+  status      DataRequestStatus @default(PENDENTE)
+  processedBy String?
+  processedAt DateTime?
+  exportData  Json?
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requester User   @relation("DataRequestRequester", fields: [requestedBy], references: [id])
+  processor User?  @relation("DataRequestProcessor", fields: [processedBy], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
 }

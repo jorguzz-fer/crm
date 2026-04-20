@@ -8,6 +8,7 @@ const MIGRATIONS = [
   { name: "0001_init", check: `SELECT 1 FROM "Tenant" LIMIT 1` },
   { name: "0002_auth_models", check: `SELECT 1 FROM "User" LIMIT 1` },
   { name: "0003_crm_core", check: `SELECT 1 FROM "Lead" LIMIT 1` },
+  { name: "0004_lgpd", check: `SELECT 1 FROM "ConsentRecord" LIMIT 1` },
 ];
 
 async function applyMigration(prisma, name) {
