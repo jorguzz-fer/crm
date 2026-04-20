@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Kanban, Building2, Contact, Calendar, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Users, Kanban, Building2, Contact, Calendar, CheckSquare, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/leads", label: "Leads", icon: Users },
-  { href: "/pipeline", label: "Pipeline", icon: Kanban },
-  { href: "/agenda", label: "Agenda", icon: Calendar },
-  { href: "/empresas", label: "Empresas", icon: Building2 },
-  { href: "/contatos", label: "Contatos", icon: Contact },
+  { href: "/dashboard",  label: "Dashboard",  icon: LayoutDashboard },
+  { href: "/leads",      label: "Leads",      icon: Users },
+  { href: "/pipeline",   label: "Pipeline",   icon: Kanban },
+  { href: "/agenda",     label: "Agenda",     icon: Calendar },
+  { href: "/tarefas",    label: "Tarefas",    icon: CheckSquare },
+  { href: "/empresas",   label: "Empresas",   icon: Building2 },
+  { href: "/contatos",   label: "Contatos",   icon: Contact },
 ];
 
 export function Sidebar() {
