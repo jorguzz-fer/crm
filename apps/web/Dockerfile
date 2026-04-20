@@ -35,6 +35,16 @@ RUN npm install -g pnpm@10
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Recria symlinks dos workspace packages após COPY . .
+# Docker preserva symlinks do COPY --from mas o target precisa existir;
+# ln -sf garante resolução correta independente do comportamento do runtime pnpm
+RUN mkdir -p node_modules/@crm && \
+    rm -rf node_modules/@crm/db node_modules/@crm/validators node_modules/@crm/ai node_modules/@crm/ui && \
+    ln -sf /app/packages/db         node_modules/@crm/db && \
+    ln -sf /app/packages/validators node_modules/@crm/validators && \
+    ln -sf /app/packages/ai         node_modules/@crm/ai && \
+    ln -sf /app/packages/ui         node_modules/@crm/ui
+
 # usa binary local — NÃO usa npx (baixaria Prisma v7 quebrando o schema v6)
 RUN node_modules/.bin/prisma generate --schema=packages/db/prisma/schema.prisma
 

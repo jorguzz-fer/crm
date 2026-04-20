@@ -46,6 +46,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  // Workspace packages exportam TypeScript direto — Next.js precisa compilar
+  transpilePackages: ["@crm/db", "@crm/validators", "@crm/ai", "@crm/ui"],
   serverExternalPackages: [
     "@prisma/client",
     "prisma",
