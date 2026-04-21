@@ -76,7 +76,7 @@ export async function createDataRequestAction(
 // ─── Aprovar solicitação (processa export ou anonimiza) ───────────────────────
 
 export async function approveDataRequestAction(
-  _prev: unknown,
+  _prev: { error: string } | { success: string } | null,
   formData: FormData
 ) {
   const { session, error } = await requireRole(ROLES_ADMIN);
@@ -205,7 +205,7 @@ export async function approveDataRequestAction(
 // ─── Rejeitar solicitação ─────────────────────────────────────────────────────
 
 export async function rejectDataRequestAction(
-  _prev: unknown,
+  _prev: { error: string } | { success: string } | null,
   formData: FormData
 ) {
   const { session, error } = await requireRole(ROLES_ADMIN);

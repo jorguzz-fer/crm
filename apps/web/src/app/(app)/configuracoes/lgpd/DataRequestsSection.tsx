@@ -40,17 +40,19 @@ interface DataRequest {
   processor: { name: string } | null;
 }
 
+type ActionState = { error: string } | { success: string } | null;
+
 function ApproveRejectButtons({ requestId }: { requestId: string }) {
-  const [approveState, approveAction, approvePending] = useActionState(approveDataRequestAction, null);
-  const [rejectState, rejectAction, rejectPending] = useActionState(rejectDataRequestAction, null);
+  const [approveState, approveAction, approvePending] = useActionState<ActionState, FormData>(approveDataRequestAction, null);
+  const [rejectState, rejectAction, rejectPending] = useActionState<ActionState, FormData>(rejectDataRequestAction, null);
 
   return (
     <div className="flex items-center gap-2">
-      {(approveState as any)?.error && (
-        <span className="text-xs text-destructive">{(approveState as any).error}</span>
+      {approveState && "error" in approveState && (
+        <span className="text-xs text-destructive">{approveState.error}</span>
       )}
-      {(rejectState as any)?.error && (
-        <span className="text-xs text-destructive">{(rejectState as any).error}</span>
+      {rejectState && "error" in rejectState && (
+        <span className="text-xs text-destructive">{rejectState.error}</span>
       )}
       <form action={approveAction}>
         <input type="hidden" name="requestId" value={requestId} />
