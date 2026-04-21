@@ -19,8 +19,14 @@ export async function connectWhatsAppAction(): Promise<
     return { error: "EVOLUTION_API_URL e EVOLUTION_API_KEY não configurados" };
   }
 
-  const tenantId     = session.user.tenantId;
-  const instanceName = `crm-${session.user.tenantId.slice(-8)}`;
+  const tenantId = session.user.tenantId;
+
+  // Usa instanceName já salvo no DB, ou gera um novo a partir do slug do tenant
+  const existing = await prisma.whatsAppInstance.findUnique({ where: { tenantId } });
+
+  // Busca o slug do tenant para nome legível
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true } });
+  const instanceName = existing?.instanceName ?? `crm-${(tenant?.slug ?? tenantId.slice(-8)).slice(0, 20)}`;
 
   // Obtém URL base da app para o webhook
   const hdrs       = await headers();
@@ -28,46 +34,61 @@ export async function connectWhatsAppAction(): Promise<
   const proto      = hdrs.get("x-forwarded-proto") ?? "http";
   const webhookUrl = `${proto}://${host}/api/webhooks/whatsapp`;
 
+  // Passo 1: Criar instância (ignora erro "já existe")
   try {
-    // Cria instância na Evolution API (ou reutiliza se já existir)
-    await evo.createInstance(instanceName, webhookUrl).catch(() => {
-      // Pode falhar se já existir — tudo bem, seguimos
-    });
-
-    // Busca QR code atual
-    const qr = await evo.connectInstance(instanceName);
-
-    // Upsert no banco
-    const instance = await prisma.whatsAppInstance.upsert({
-      where: { tenantId },
-      update: {
-        instanceName,
-        status: "CONNECTING",
-        qrCode: qr.base64 ?? null,
-        updatedAt: new Date(),
-      },
-      create: {
-        tenantId,
-        instanceName,
-        status: "CONNECTING",
-        qrCode: qr.base64 ?? null,
-      },
-    });
-
-    await logAudit({
-      tenantId,
-      userId: session.user.id,
-      action: "whatsapp.connect",
-      entity: "WhatsAppInstance",
-      entityId: instance.id,
-    });
-
-    revalidatePath("/configuracoes/whatsapp");
-    return { success: "Instância criada — escaneie o QR Code", qrCode: qr.base64 };
+    await evo.createInstance(instanceName, webhookUrl);
   } catch (err) {
-    console.error("[connectWhatsApp]", err);
-    return { error: "Erro ao conectar com Evolution API. Verifique as configurações." };
+    const msg = err instanceof Error ? err.message : String(err);
+    // Só ignora se a instância já existir (400/409). Outros erros propagamos.
+    if (!msg.includes("400") && !msg.includes("409") && !msg.includes("already")) {
+      console.error("[connectWhatsApp] createInstance:", msg);
+      return { error: `Evolution API: ${msg.slice(0, 120)}` };
+    }
   }
+
+  // Passo 2: Buscar QR code
+  let qrBase64: string | undefined;
+  try {
+    const qr = await evo.connectInstance(instanceName);
+    qrBase64 = qr.base64;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[connectWhatsApp] connectInstance:", msg);
+    return { error: `Erro ao buscar QR Code: ${msg.slice(0, 120)}` };
+  }
+
+  // Passo 3: Salvar no banco
+  const instance = await prisma.whatsAppInstance.upsert({
+    where: { tenantId },
+    update: {
+      instanceName,
+      status: "CONNECTING",
+      qrCode: qrBase64 ?? null,
+      updatedAt: new Date(),
+    },
+    create: {
+      tenantId,
+      instanceName,
+      status: "CONNECTING",
+      qrCode: qrBase64 ?? null,
+    },
+  });
+
+  await logAudit({
+    tenantId,
+    userId: session.user.id,
+    action: "whatsapp.connect",
+    entity: "WhatsAppInstance",
+    entityId: instance.id,
+  });
+
+  revalidatePath("/configuracoes/whatsapp");
+
+  if (!qrBase64) {
+    return { error: "Instância criada mas QR Code não retornado. Tente novamente em 5 segundos." };
+  }
+
+  return { success: "Escaneie o QR Code com seu WhatsApp", qrCode: qrBase64 };
 }
 
 // ─── Desconectar/remover instância ───────────────────────────────────────────
