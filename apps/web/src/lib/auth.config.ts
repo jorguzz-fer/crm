@@ -7,6 +7,7 @@ export const PUBLIC_PATHS = [
   "/api/auth",
   "/api/health",
   "/api/cron",
+  "/api/webhooks",
   "/privacidade",
   "/termos",
   "/forgot-password",

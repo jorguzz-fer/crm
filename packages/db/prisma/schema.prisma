@@ -36,6 +36,8 @@ model Tenant {
   dataRequests     DataRequest[]
   aiInvocations    AiInvocationLog[]
   followUpAlerts   AiFollowUpAlert[]
+  waInstance       WhatsAppInstance?
+  waConversations  WhatsAppConversation[]
 
   @@index([slug])
 }
@@ -231,11 +233,12 @@ model Lead {
   tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   assignee      User?         @relation("LeadAssignee", fields: [assignedTo], references: [id])
   companyRecord Company?      @relation(fields: [companyId], references: [id])
-  notes          Note[]
-  activities     Activity[]
-  tasks          Task[]
-  opportunities  Opportunity[]
-  followUpAlerts AiFollowUpAlert[]
+  notes           Note[]
+  activities      Activity[]
+  tasks           Task[]
+  opportunities   Opportunity[]
+  followUpAlerts  AiFollowUpAlert[]
+  waConversations WhatsAppConversation[]
 
   @@index([tenantId, status])
   @@index([tenantId, assignedTo])
@@ -278,9 +281,10 @@ model Contact {
 
   tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   company Company? @relation(fields: [companyId], references: [id])
-  notes         Note[]
-  activities    Activity[]
-  opportunities Opportunity[]
+  notes           Note[]
+  activities      Activity[]
+  opportunities   Opportunity[]
+  waConversations WhatsAppConversation[]
 
   @@index([tenantId, name])
   @@index([tenantId, companyId])
@@ -514,4 +518,81 @@ model DataRequest {
 
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
+}
+
+// ─── V2: WhatsApp (Evolution API) ─────────────────────────────────────────────
+
+enum WaStatus {
+  DISCONNECTED
+  CONNECTING
+  CONNECTED
+}
+
+enum WaMessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  VIDEO
+  DOCUMENT
+  STICKER
+  UNKNOWN
+}
+
+model WhatsAppInstance {
+  id           String   @id @default(cuid())
+  tenantId     String   @unique
+  instanceName String   @unique
+  phone        String?
+  status       WaStatus @default(DISCONNECTED)
+  qrCode       String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversations WhatsAppConversation[]
+}
+
+model WhatsAppConversation {
+  id            String    @id @default(cuid())
+  tenantId      String
+  instanceId    String
+  remoteJid     String
+  remotePhone   String
+  remoteName    String?
+  leadId        String?
+  contactId     String?
+  unreadCount   Int       @default(0)
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  instance WhatsAppInstance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  messages WhatsAppMessage[]
+  lead     Lead?             @relation(fields: [leadId], references: [id])
+  contact  Contact?          @relation(fields: [contactId], references: [id])
+
+  @@unique([instanceId, remoteJid])
+  @@index([tenantId, lastMessageAt])
+  @@index([tenantId, leadId])
+  @@index([tenantId, contactId])
+}
+
+model WhatsAppMessage {
+  id             String        @id @default(cuid())
+  tenantId       String
+  conversationId String
+  waMessageId    String        @unique
+  fromMe         Boolean
+  body           String?       @db.Text
+  mediaType      WaMessageType @default(TEXT)
+  mediaUrl       String?
+  status         String        @default("RECEIVED")
+  timestamp      DateTime
+  createdAt      DateTime      @default(now())
+
+  conversation WhatsAppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, timestamp])
+  @@index([tenantId, timestamp])
 }

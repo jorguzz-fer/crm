@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Kanban, Building2, Contact, Calendar, CheckSquare, Activity, Settings, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Users, Kanban, Building2, Contact, Calendar, CheckSquare, Activity, Settings, ChevronRight, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/dashboard",     label: "Dashboard",     icon: LayoutDashboard },
   { href: "/leads",         label: "Leads",         icon: Users },
   { href: "/pipeline",      label: "Pipeline",      icon: Kanban },
+  { href: "/whatsapp",      label: "WhatsApp",      icon: MessageCircle },
   { href: "/agenda",        label: "Agenda",        icon: Calendar },
   { href: "/tarefas",       label: "Tarefas",       icon: CheckSquare },
   { href: "/atividades",    label: "Atividades",    icon: Activity },
