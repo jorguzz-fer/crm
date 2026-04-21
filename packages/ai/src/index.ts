@@ -24,3 +24,6 @@ export type ModelKey = keyof typeof MODELS;
 
 export { summarize } from "./assistants/summarize";
 export type { SummaryResult } from "./assistants/summarize";
+
+export { detectStaleLeads } from "./assistants/followUp";
+export type { LeadForFollowUp, StaleAlert } from "./assistants/followUp";

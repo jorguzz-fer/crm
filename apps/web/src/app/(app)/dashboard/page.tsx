@@ -6,6 +6,7 @@ import {
   Users, Kanban, CheckSquare, TrendingUp,
   ArrowRight, Clock, AlertCircle,
 } from "lucide-react";
+import { FollowUpAlerts } from "@/components/ai/FollowUpAlerts";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -40,6 +41,7 @@ export default async function DashboardPage() {
     tarefasHoje,
     ultimosLeads,
     ultimasAtividades,
+    followUpAlerts,
   ] = await Promise.all([
     // Leads criados hoje
     prisma.lead.count({ where: { tenantId, createdAt: { gte: todayStart } } }),
@@ -102,6 +104,24 @@ export default async function DashboardPage() {
         opportunity: { select: { id: true, title: true } },
       },
     }),
+
+    // Alertas de acompanhamento não dispensados (últimos 7 dias)
+    prisma.aiFollowUpAlert.findMany({
+      where: {
+        tenantId,
+        dismissed: false,
+        createdAt: { gte: new Date(Date.now() - 7 * 86400000) },
+      },
+      orderBy: [{ daysStale: "desc" }, { createdAt: "desc" }],
+      take: 10,
+      select: {
+        id: true,
+        leadId: true,
+        message: true,
+        daysStale: true,
+        lead: { select: { name: true } },
+      },
+    }),
   ]);
 
   const taxaConversao = leadsTotal > 0 ? Math.round((leadsConvertidos / leadsTotal) * 100) : 0;
@@ -133,8 +153,8 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Alertas */}
-      {(tarefasAtrasadas > 0) && (
+      {/* Alertas de tarefas */}
+      {tarefasAtrasadas > 0 && (
         <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <AlertCircle size={16} className="shrink-0" />
           <span>
@@ -145,6 +165,17 @@ export default async function DashboardPage() {
           </Link>
         </div>
       )}
+
+      {/* Alertas de acompanhamento (IA) */}
+      <FollowUpAlerts
+        alerts={followUpAlerts.map((a) => ({
+          id: a.id,
+          leadId: a.leadId,
+          leadName: a.lead?.name ?? null,
+          message: a.message,
+          daysStale: a.daysStale,
+        }))}
+      />
 
       {/* KPIs principais */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

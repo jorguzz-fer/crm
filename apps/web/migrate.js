@@ -9,10 +9,16 @@ const MIGRATIONS = [
   { name: "0002_auth_models", check: `SELECT 1 FROM "User" LIMIT 1` },
   { name: "0003_crm_core", check: `SELECT 1 FROM "Lead" LIMIT 1` },
   { name: "0004_lgpd", check: `SELECT 1 FROM "ConsentRecord" LIMIT 1` },
+  { name: "0005_ai",   check: `SELECT 1 FROM "AiFollowUpAlert" LIMIT 1` },
 ];
 
 async function applyMigration(prisma, name) {
-  const sqlPath = join(__dirname, `prisma/migrations/${name}/migration.sql`);
+  // Em produção (Docker/Coolify): migrations em __dirname/prisma/migrations/
+  // Em desenvolvimento local (monorepo): migrations em packages/db/prisma/migrations/
+  const sqlPathProd = join(__dirname, `prisma/migrations/${name}/migration.sql`);
+  const sqlPathDev  = join(__dirname, `../../packages/db/prisma/migrations/${name}/migration.sql`);
+  const sqlPath = existsSync(sqlPathProd) ? sqlPathProd : sqlPathDev;
+
   if (!existsSync(sqlPath)) {
     console.warn(`⚠ Migration ${name} não encontrada — pulando`);
     return;

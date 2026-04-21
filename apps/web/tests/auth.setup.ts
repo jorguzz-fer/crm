@@ -27,7 +27,7 @@ setup("autenticar admin de teste", async ({ page }) => {
 
   // Preenche o formulário de login
   await page.getByLabel(/e-?mail/i).fill(ADMIN_EMAIL);
-  await page.getByLabel(/senha/i).fill(ADMIN_PASSWORD);
+  await page.locator('input[name="password"]').fill(ADMIN_PASSWORD);
   await page.getByRole("button", { name: /entrar/i }).click();
 
   // Aguarda redirecionamento para o dashboard

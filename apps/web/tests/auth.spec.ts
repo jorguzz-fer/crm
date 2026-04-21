@@ -28,7 +28,7 @@ test.describe("Login", () => {
     await page.goto("/login");
 
     await page.getByLabel(/e-?mail/i).fill("naoexiste@exemplo.com");
-    await page.getByLabel(/senha/i).fill("senhaerrada123");
+    await page.locator('input[name="password"]').fill("senhaerrada123");
     await page.getByRole("button", { name: /entrar/i }).click();
 
     // Deve mostrar mensagem de erro (não redirecionar)
@@ -41,7 +41,7 @@ test.describe("Login", () => {
     await page.goto("/login");
 
     await page.getByLabel(/e-?mail/i).fill("qualquer@email.com");
-    await page.getByLabel(/senha/i).fill("123");
+    await page.locator('input[name="password"]').fill("123");
     await page.getByRole("button", { name: /entrar/i }).click();
 
     await expect(page).toHaveURL(/\/login/);
@@ -54,7 +54,7 @@ test.describe("Login", () => {
 
     await page.goto("/termos");
     await expect(page).toHaveURL(/\/termos/);
-    await expect(page.getByRole("heading", { name: /termos/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Termos de Uso", level: 1 })).toBeVisible();
   });
 });
 

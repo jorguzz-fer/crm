@@ -49,7 +49,7 @@ test.describe("Criação de lead", () => {
     await page.waitForURL(/\/leads\/.+/, { timeout: 15_000 });
 
     // Verifica que o nome do lead está na página de detalhe
-    await expect(page.getByText(LEAD_NAME)).toBeVisible();
+    await expect(page.getByRole("heading", { name: LEAD_NAME })).toBeVisible();
   });
 });
 

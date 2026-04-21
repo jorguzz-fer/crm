@@ -31,7 +31,7 @@ test.describe("Visualização do Pipeline", () => {
 
   test("link na sidebar navega para /pipeline", async ({ page }) => {
     await page.goto("/dashboard");
-    await page.getByRole("link", { name: /pipeline/i }).click();
+    await page.getByRole("link", { name: "Pipeline", exact: true }).click();
     await expect(page).toHaveURL(/\/pipeline/);
   });
 });

@@ -1,0 +1,26 @@
+# Ambiente de desenvolvimento local
+# Uso: docker compose -f docker-compose.dev.yml up -d
+#
+# Sobe apenas o Postgres (o Next.js roda direto com `pnpm dev`)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: crm_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: crm_dev_pass
+      POSTGRES_DB: crm_dev
+    ports:
+      - "5434:5432"   # 5434 no host → 5432 e 5433 ocupados por outros projetos
+    volumes:
+      - crm_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm -d crm_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  crm_postgres_data:

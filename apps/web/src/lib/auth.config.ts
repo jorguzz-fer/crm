@@ -6,6 +6,7 @@ export const PUBLIC_PATHS = [
   "/signup",
   "/api/auth",
   "/api/health",
+  "/api/cron",
   "/privacidade",
   "/termos",
   "/forgot-password",

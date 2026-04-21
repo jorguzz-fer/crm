@@ -66,6 +66,25 @@ export async function summarizeLeadAction(
   }
 }
 
+export async function dismissFollowUpAlertAction(alertId: string): Promise<void> {
+  const { session, error } = await requireRole(ROLES_WRITE);
+  if (error) return;
+
+  const tenantId = session!.user.tenantId;
+
+  // Cross-tenant check
+  const alert = await prisma.aiFollowUpAlert.findFirst({
+    where: { id: alertId, tenantId },
+    select: { id: true },
+  });
+  if (!alert) return;
+
+  await prisma.aiFollowUpAlert.update({
+    where: { id: alertId },
+    data: { dismissed: true },
+  });
+}
+
 export async function summarizeOpportunityAction(
   _prev: AISummaryState,
   formData: FormData

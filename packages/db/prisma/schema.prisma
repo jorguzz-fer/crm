@@ -32,8 +32,10 @@ model Tenant {
   activities     Activity[]
   tasks          Task[]
   notes          Note[]
-  consentRecords ConsentRecord[]
-  dataRequests   DataRequest[]
+  consentRecords   ConsentRecord[]
+  dataRequests     DataRequest[]
+  aiInvocations    AiInvocationLog[]
+  followUpAlerts   AiFollowUpAlert[]
 
   @@index([slug])
 }
@@ -229,10 +231,11 @@ model Lead {
   tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   assignee      User?         @relation("LeadAssignee", fields: [assignedTo], references: [id])
   companyRecord Company?      @relation(fields: [companyId], references: [id])
-  notes         Note[]
-  activities    Activity[]
-  tasks         Task[]
-  opportunities Opportunity[]
+  notes          Note[]
+  activities     Activity[]
+  tasks          Task[]
+  opportunities  Opportunity[]
+  followUpAlerts AiFollowUpAlert[]
 
   @@index([tenantId, status])
   @@index([tenantId, assignedTo])
@@ -422,6 +425,50 @@ model Note {
 
   @@index([tenantId, leadId])
   @@index([tenantId, opportunityId])
+}
+
+// ─── Fase 5: IA ───────────────────────────────────────────────────────────────
+
+enum FollowUpAlertType {
+  SEM_INTERACAO
+  TAREFA_VENCIDA
+  OPORTUNIDADE_PARADA
+}
+
+model AiInvocationLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String?
+  assistant  String   // "summarize" | "follow-up"
+  entityType String?  // "Lead" | "Opportunity"
+  entityId   String?
+  tokens     Int?
+  costUsd    Float?
+  latencyMs  Int?
+  model      String?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, assistant, createdAt])
+  @@index([tenantId, entityType, entityId])
+}
+
+model AiFollowUpAlert {
+  id            String            @id @default(cuid())
+  tenantId      String
+  leadId        String?
+  type          FollowUpAlertType
+  message       String
+  daysStale     Int?
+  dismissed     Boolean           @default(false)
+  createdAt     DateTime          @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead   Lead?  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, dismissed, createdAt])
+  @@index([tenantId, leadId])
 }
 
 // ─── Fase 6: LGPD ─────────────────────────────────────────────────────────────
