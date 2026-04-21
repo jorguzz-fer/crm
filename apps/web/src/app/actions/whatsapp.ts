@@ -39,6 +39,8 @@ export async function connectWhatsAppAction(): Promise<
   let qrBase64: string | undefined;
   try {
     const created = await evo.createInstance(instanceName, webhookUrl);
+    console.log("[connectWhatsApp] createInstance response keys:", Object.keys(created));
+    console.log("[connectWhatsApp] createInstance qrcode:", JSON.stringify(created.qrcode)?.slice(0, 100));
     qrBase64 = created.qrcode?.base64;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -47,17 +49,28 @@ export async function connectWhatsAppAction(): Promise<
       console.error("[connectWhatsApp] createInstance:", msg);
       return { error: `Evolution API: ${msg.slice(0, 120)}` };
     }
+    console.log("[connectWhatsApp] createInstance ignorado (instância já existe)");
   }
 
-  // Passo 2: Se não veio QR no create, buscar via connect endpoint
+  // Passo 2: Se não veio QR no create, buscar via connect endpoint com retries
   if (!qrBase64) {
-    try {
-      const qr = await evo.connectInstance(instanceName);
-      qrBase64 = qr.base64;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error("[connectWhatsApp] connectInstance:", msg);
-      return { error: `Erro ao buscar QR Code: ${msg.slice(0, 120)}` };
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      // Aguarda Baileys inicializar o QR (cresce com cada tentativa)
+      await new Promise(r => setTimeout(r, attempt * 1500));
+      try {
+        const raw = await evo.connectInstance(instanceName);
+        console.log(`[connectWhatsApp] connectInstance attempt ${attempt}:`, JSON.stringify(raw)?.slice(0, 200));
+        if (raw.base64) {
+          qrBase64 = raw.base64;
+          break;
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[connectWhatsApp] connectInstance attempt ${attempt}:`, msg);
+        if (attempt === 3) {
+          return { error: `Erro ao buscar QR Code: ${msg.slice(0, 120)}` };
+        }
+      }
     }
   }
 
