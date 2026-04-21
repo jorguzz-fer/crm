@@ -102,7 +102,10 @@ export async function connectWhatsAppAction(): Promise<
   revalidatePath("/configuracoes/whatsapp");
 
   if (!qrBase64) {
-    return { error: "Instância criada mas QR Code não retornado. Tente novamente em 5 segundos." };
+    // QR ainda não pronto: a Evolution API gera assíncrono e envia via webhook
+    // (evento QRCODE_UPDATED). A UI faz polling via refreshQrAction e exibe
+    // assim que o QR for salvo no DB pelo handler do webhook.
+    return { success: "Aguardando QR Code da Evolution API..." };
   }
 
   return { success: "Escaneie o QR Code com seu WhatsApp", qrCode: qrBase64 };

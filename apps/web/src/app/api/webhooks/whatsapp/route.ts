@@ -179,17 +179,24 @@ export async function POST(req: Request) {
   try {
     const body = await req.json() as Record<string, unknown>;
 
-    // Valida a API key enviada pela Evolution API no payload
-    const apikey = body.apikey as string | undefined;
-    if (apikey && process.env.EVOLUTION_API_KEY && apikey !== process.env.EVOLUTION_API_KEY) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const event        = (body.event as string | undefined)?.toUpperCase().replace(".", "_");
     const instanceName = body.instance as string | undefined;
     const data         = body.data;
 
     if (!instanceName) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // Segurança: a Evolution API v2 envia a apikey ESPECÍFICA da instância
+    // (não a global EVOLUTION_API_KEY), então não dá para comparar com a env.
+    // Em vez disso, exigimos que a instância exista no nosso DB — payloads
+    // para instâncias desconhecidas são silenciosamente descartados.
+    // (URL do webhook não é pública e cada tenant tem nome de instância próprio.)
+    const known = await prisma.whatsAppInstance.findUnique({
+      where: { instanceName },
+      select: { id: true },
+    });
+    if (!known) {
       return NextResponse.json({ ok: true });
     }
 
