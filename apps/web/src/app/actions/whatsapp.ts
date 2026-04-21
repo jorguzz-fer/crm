@@ -35,8 +35,11 @@ export async function connectWhatsAppAction(): Promise<
   const webhookUrl = `${proto}://${host}/api/webhooks/whatsapp`;
 
   // Passo 1: Criar instância (ignora erro "já existe")
+  // A v2 pode retornar o QR já na resposta de criação quando qrcode:true
+  let qrBase64: string | undefined;
   try {
-    await evo.createInstance(instanceName, webhookUrl);
+    const created = await evo.createInstance(instanceName, webhookUrl);
+    qrBase64 = created.qrcode?.base64;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     // Só ignora se a instância já existir (400/409). Outros erros propagamos.
@@ -46,15 +49,16 @@ export async function connectWhatsAppAction(): Promise<
     }
   }
 
-  // Passo 2: Buscar QR code
-  let qrBase64: string | undefined;
-  try {
-    const qr = await evo.connectInstance(instanceName);
-    qrBase64 = qr.base64;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[connectWhatsApp] connectInstance:", msg);
-    return { error: `Erro ao buscar QR Code: ${msg.slice(0, 120)}` };
+  // Passo 2: Se não veio QR no create, buscar via connect endpoint
+  if (!qrBase64) {
+    try {
+      const qr = await evo.connectInstance(instanceName);
+      qrBase64 = qr.base64;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[connectWhatsApp] connectInstance:", msg);
+      return { error: `Erro ao buscar QR Code: ${msg.slice(0, 120)}` };
+    }
   }
 
   // Passo 3: Salvar no banco

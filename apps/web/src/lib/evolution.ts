@@ -35,10 +35,19 @@ export function isConfigured() {
 
 // ─── Instance management ──────────────────────────────────────────────────────
 
+export interface QRCodePayload {
+  pairingCode?: string | null;
+  code?: string;
+  base64?: string; // data:image/png;base64,...
+  count?: number;
+}
+
 export interface CreateInstanceResult {
   instance: { instanceName: string; status: string };
-  hash: { apikey: string };
-  settings: Record<string, unknown>;
+  hash?: { apikey: string };
+  settings?: Record<string, unknown>;
+  // Evolution API v2 retorna o QR aqui quando qrcode:true
+  qrcode?: QRCodePayload;
 }
 
 export async function createInstance(
@@ -67,19 +76,23 @@ export async function createInstance(
   });
 }
 
-export interface QRCodeResult {
-  pairingCode: string | null;
-  code: string;
-  base64: string; // data:image/png;base64,...
-  count?: number;
-}
-
-/** Conecta/reconecta a instância e retorna o QR code atual */
+/** Conecta/reconecta a instância e retorna o QR code atual.
+ *  A v2 pode retornar flat ({ base64 }) ou aninhado ({ qrcode: { base64 } }).
+ */
 export async function connectInstance(instanceName: string): Promise<{ base64?: string; code?: string }> {
-  const data = await req<{ base64?: string; code?: string; pairingCode?: string }>(
+  const data = await req<{
+    base64?: string;
+    code?: string;
+    pairingCode?: string | null;
+    qrcode?: QRCodePayload;
+  }>(
     `/instance/connect/${instanceName}`
   );
-  return data;
+  // Normaliza ambos os formatos de resposta
+  return {
+    base64: data.base64 ?? data.qrcode?.base64,
+    code:   data.code   ?? data.qrcode?.code,
+  };
 }
 
 export interface InstanceState {
