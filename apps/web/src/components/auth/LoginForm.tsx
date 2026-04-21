@@ -6,8 +6,18 @@ import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 
-export function LoginForm({ signupSuccess }: { signupSuccess?: boolean }) {
+export function LoginForm({
+  signupSuccess,
+  urlError,
+}: {
+  signupSuccess?: boolean;
+  urlError?: string;
+}) {
   const [state, action, pending] = useActionState(loginAction, null);
+
+  // Erro pode vir do Server Action (useActionState) ou do redirect do Auth.js (?error= na URL)
+  const errorMessage =
+    (state && "error" in state ? state.error : null) ?? urlError ?? null;
 
   return (
     <div className="space-y-4">
@@ -17,9 +27,9 @@ export function LoginForm({ signupSuccess }: { signupSuccess?: boolean }) {
         </div>
       )}
 
-      {state && "error" in state && (
+      {errorMessage && (
         <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
-          {state.error}
+          {errorMessage}
         </div>
       )}
 
