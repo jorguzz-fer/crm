@@ -28,7 +28,7 @@ export function WaSetupCard({ status: initialStatus, phone: initialPhone, qrCode
 
   const [qrCode, setQrCode] = useState(initialQr);
   const [status, setStatus] = useState(initialStatus);
-  const [phone, setPhone] = useState(initialPhone);
+  const phone = initialPhone; // atualiza via webhook → page refresh
   const [refreshing, startRefresh] = useTransition();
 
   // Polling enquanto estiver conectando: atualiza QR e status a cada 10s
