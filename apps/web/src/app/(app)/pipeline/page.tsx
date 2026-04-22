@@ -3,6 +3,7 @@ import { prisma } from "@crm/db";
 import type { Metadata } from "next";
 import { KanbanBoard } from "@/components/pipeline/KanbanBoard";
 import { NewOpportunityModal } from "@/components/pipeline/NewOpportunityModal";
+import { CreatePipelineForm } from "@/components/pipeline/CreatePipelineForm";
 
 export const metadata: Metadata = { title: "Pipeline" };
 
@@ -45,16 +46,7 @@ export default async function PipelinePage() {
   });
 
   if (!pipeline) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center space-y-2">
-          <p className="text-lg font-medium">Nenhum pipeline encontrado</p>
-          <p className="text-sm text-muted-foreground">
-            Execute o seed para criar o pipeline padrão.
-          </p>
-        </div>
-      </div>
-    );
+    return <CreatePipelineForm />;
   }
 
   const totalValue = pipeline.stages.flatMap((s) => s.opportunities).reduce(
