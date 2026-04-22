@@ -26,7 +26,7 @@ const createPipelineSchema = z.object({
     .optional(),
 });
 
-export async function GET(_req: Request) {
+export async function GET() {
   const { session, error } = await requireRole(["SUPERADMIN", "ADMIN", "SUPERVISOR", "ANALYST", "VIEWER"]);
   if (error) return error;
 
