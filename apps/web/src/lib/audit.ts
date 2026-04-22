@@ -1,4 +1,5 @@
-import { prisma } from "@crm/db";
+import { prisma, Prisma } from "@crm/db";
+import { redactObject } from "@crm/validators";
 
 interface AuditEntry {
   tenantId: string;
@@ -12,6 +13,16 @@ interface AuditEntry {
 
 export async function logAudit(entry: AuditEntry) {
   try {
+    // Sanitiza `meta` antes de persistir: chaves sensíveis (password, token,
+    // apikey...) viram "[redacted]" e PII embutida (CPF, e-mail, telefone)
+    // é mascarada. Garante que o histórico de auditoria não vire vetor de
+    // vazamento (LGPD art. 46).
+    const safeMeta = entry.meta
+      ? (redactObject(
+          JSON.parse(JSON.stringify(entry.meta)) as Record<string, unknown>,
+        ) as Prisma.InputJsonValue)
+      : undefined;
+
     await prisma.auditLog.create({
       data: {
         tenantId: entry.tenantId,
@@ -19,7 +30,7 @@ export async function logAudit(entry: AuditEntry) {
         action: entry.action,
         entity: entry.entity,
         entityId: entry.entityId ?? null,
-        meta: entry.meta ? JSON.parse(JSON.stringify(entry.meta)) : undefined,
+        meta: safeMeta,
         ip: entry.ip ?? null,
       },
     });

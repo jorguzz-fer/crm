@@ -2,6 +2,9 @@ import { z } from "zod";
 
 export { z };
 
+// PII redaction helpers (LGPD)
+export * from "./pii";
+
 export const emailSchema = z.string().email().max(200);
 
 export const slugSchema = z
