@@ -28,6 +28,8 @@ const ACTION_LABELS: Record<string, string> = {
   "lgpd.request.approve": "Aprovou solicitação LGPD",
   "lgpd.request.reject": "Rejeitou solicitação LGPD",
   "lgpd.consent.register": "Registrou consentimento",
+  "lgpd.retention.anonymize_lead": "Anonimizou leads (retenção)",
+  "lgpd.retention.anonymize_contact": "Anonimizou contatos (retenção)",
   "ai.summarize": "Gerou resumo com IA",
 };
 
@@ -39,7 +41,8 @@ interface Log {
   meta: unknown;
   ip: string | null;
   createdAt: Date;
-  user: { name: string };
+  // null = ação executada pelo sistema (cronjobs, jobs automatizados)
+  user: { name: string } | null;
 }
 
 export function AuditLogSection({ logs }: { logs: Log[] }) {
@@ -74,7 +77,11 @@ export function AuditLogSection({ logs }: { logs: Log[] }) {
                   minute: "2-digit",
                 })}
               </td>
-              <td className="px-4 py-2.5 font-medium">{log.user.name}</td>
+              <td className="px-4 py-2.5 font-medium">
+                {log.user?.name ?? (
+                  <span className="italic text-muted-foreground">Sistema</span>
+                )}
+              </td>
               <td className="px-4 py-2.5">
                 <span className="text-xs">{ACTION_LABELS[log.action] ?? log.action}</span>
               </td>

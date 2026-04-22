@@ -3,7 +3,8 @@ import { redactObject } from "@crm/validators";
 
 interface AuditEntry {
   tenantId: string;
-  userId: string;
+  // null = ação executada pelo sistema (cronjob, webhook anônimo, etc.)
+  userId: string | null;
   action: string;
   entity: string;
   entityId?: string | null;

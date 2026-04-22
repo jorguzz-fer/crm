@@ -11,6 +11,12 @@ const MIGRATIONS = [
   { name: "0004_lgpd", check: `SELECT 1 FROM "ConsentRecord" LIMIT 1` },
   { name: "0005_ai",   check: `SELECT 1 FROM "AiFollowUpAlert" LIMIT 1` },
   { name: "0006_whatsapp", check: `SELECT 1 FROM "WhatsAppInstance" LIMIT 1` },
+  // 0007: AuditLog.userId virou nullable. Check usa divisão por zero pra
+  // forçar erro quando a coluna AINDA é NOT NULL (= migration pendente).
+  {
+    name: "0007_audit_nullable_user",
+    check: `SELECT 1 / (CASE WHEN is_nullable = 'YES' THEN 1 ELSE 0 END) FROM information_schema.columns WHERE table_name = 'AuditLog' AND column_name = 'userId'`,
+  },
 ];
 
 async function applyMigration(prisma, name) {

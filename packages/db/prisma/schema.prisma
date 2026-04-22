@@ -157,7 +157,9 @@ model Membership {
 model AuditLog {
   id        String   @id @default(cuid())
   tenantId  String
-  userId    String
+  // Nullable: ações executadas pelo sistema (cronjobs de retenção,
+  // webhooks anônimos) não têm usuário humano associado.
+  userId    String?
   action    String
   entity    String
   entityId  String?
@@ -166,7 +168,7 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
-  user   User   @relation(fields: [userId], references: [id])
+  user   User?  @relation(fields: [userId], references: [id])
 
   @@index([tenantId, createdAt])
   @@index([entity, entityId])
