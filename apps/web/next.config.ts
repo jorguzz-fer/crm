@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const securityHeaders = [
   {
@@ -46,6 +47,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  // Next.js 15 lê instrumentation.ts automaticamente (não precisa de flag experimental)
   // Workspace packages exportam TypeScript direto — Next.js precisa compilar
   transpilePackages: ["@crm/db", "@crm/validators", "@crm/ai", "@crm/ui"],
   serverExternalPackages: [
@@ -72,4 +74,39 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Envolve com withSentryConfig para:
+//   - Injetar o SDK automaticamente via Webpack
+//   - Upload de source maps (habilita stack traces legíveis no Sentry)
+//   - Tree-shaking do SDK nos bundles de produção
+//
+// Variáveis necessárias para upload de source maps (CI/Coolify):
+//   SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN
+//
+// Se SENTRY_DSN não estiver configurado, o SDK fica inativo (enabled: false).
+export default withSentryConfig(nextConfig, {
+  // Organização e projeto do sentry.io (usados no upload de source maps)
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+
+  // Source maps: enviados ao Sentry e deletados do bundle final
+  silent: true,           // não polui o output do build com logs do Sentry
+  widenClientFileUpload: true,
+  // Source maps: enviados ao Sentry e removidos do bundle público
+  sourcemaps: {
+    disable: !process.env.SENTRY_AUTH_TOKEN, // só faz upload se tiver token
+    deleteSourcemapsAfterUpload: true,
+  },
+
+  // Desativa a telemetria do SDK Sentry durante o build
+  telemetry: false,
+
+  // Não adiciona a rota /api/sentry-tunnel automaticamente (evita rota extra
+  // desnecessária se não usar CSP tunneling)
+  tunnelRoute: undefined,
+
+  // Instrumenta automaticamente Server Components e Route Handlers para
+  // performance tracing
+  webpack: {
+    automaticVercelMonitors: false,
+  },
+});
