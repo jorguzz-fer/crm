@@ -69,6 +69,7 @@ export default async function PipelinePage() {
           </p>
         </div>
         <NewOpportunityModal
+          pipelineId={pipeline.id}
           stages={pipeline.stages.map((s) => ({ id: s.id, name: s.name }))}
           users={users}
           leads={leads}

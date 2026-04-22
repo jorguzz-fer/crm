@@ -17,13 +17,17 @@ export async function createOpportunityAction(
   const { session, error } = await requireRole(ROLES_WRITE);
   if (error) return { error: "Sem permissão" };
 
+  // input[type="date"] envia "YYYY-MM-DD"; Zod espera ISO datetime ou vazio
+  const rawDate = (formData.get("expectedCloseAt") as string) || "";
+  const expectedCloseAt = rawDate ? `${rawDate}T00:00:00.000Z` : "";
+
   const raw = {
     title: formData.get("title"),
     pipelineId: formData.get("pipelineId"),
     stageId: formData.get("stageId"),
     value: formData.get("value") || undefined,
     probability: formData.get("probability") || 0,
-    expectedCloseAt: formData.get("expectedCloseAt") || undefined,
+    expectedCloseAt: expectedCloseAt || undefined,
     leadId: formData.get("leadId") || undefined,
     companyId: formData.get("companyId") || undefined,
     contactId: formData.get("contactId") || undefined,
