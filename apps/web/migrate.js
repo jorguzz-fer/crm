@@ -17,6 +17,7 @@ const MIGRATIONS = [
     name: "0007_audit_nullable_user",
     check: `SELECT 1 / (CASE WHEN is_nullable = 'YES' THEN 1 ELSE 0 END) FROM information_schema.columns WHERE table_name = 'AuditLog' AND column_name = 'userId'`,
   },
+  { name: "0008_visits", check: `SELECT 1 FROM "Visit" LIMIT 1` },
 ];
 
 async function applyMigration(prisma, name) {

@@ -32,6 +32,7 @@ model Tenant {
   activities     Activity[]
   tasks          Task[]
   notes          Note[]
+  visits           Visit[]
   consentRecords   ConsentRecord[]
   dataRequests     DataRequest[]
   aiInvocations    AiInvocationLog[]
@@ -65,6 +66,7 @@ model User {
   activities            Activity[]      @relation("ActivityUser")
   tasksAssigned         Task[]          @relation("TaskAssignee")
   notes                 Note[]          @relation("NoteAuthor")
+  visits                Visit[]
   consentCollected      ConsentRecord[] @relation("ConsentCollector")
   dataRequestsMade      DataRequest[]   @relation("DataRequestRequester")
   dataRequestsProcessed DataRequest[]   @relation("DataRequestProcessor")
@@ -238,6 +240,7 @@ model Lead {
   notes           Note[]
   activities      Activity[]
   tasks           Task[]
+  visits          Visit[]
   opportunities   Opportunity[]
   followUpAlerts  AiFollowUpAlert[]
   waConversations WhatsAppConversation[]
@@ -265,6 +268,7 @@ model Company {
   opportunities Opportunity[]
   notes         Note[]
   activities    Activity[]
+  visits        Visit[]
 
   @@index([tenantId, name])
 }
@@ -351,6 +355,7 @@ model Opportunity {
   notes    Note[]
   activities Activity[]
   tasks    Task[]
+  visits   Visit[]
 
   @@index([tenantId, stageId])
   @@index([tenantId, pipelineId])
@@ -538,6 +543,41 @@ enum WaMessageType {
   DOCUMENT
   STICKER
   UNKNOWN
+}
+
+// ── Visitas de campo ─────────────────────────────────────────────────────────
+
+model Visit {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String                        // quem registrou
+  leadId      String?
+  companyId   String?
+  opportunityId String?
+
+  subject     String                        // motivo / assunto da visita
+  notes       String?  @db.Text            // observações livres
+  outcome     String?                       // resultado (ex: "Proposta entregue")
+
+  // Geolocalização (opcional — preenchida pelo browser)
+  lat         Float?
+  lng         Float?
+  address     String?                       // endereço legível (reverse-geocode)
+
+  visitedAt   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+  lead        Lead?       @relation(fields: [leadId], references: [id])
+  company     Company?    @relation(fields: [companyId], references: [id])
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+
+  @@index([tenantId, visitedAt])
+  @@index([tenantId, userId])
+  @@index([leadId])
+  @@index([companyId])
 }
 
 model WhatsAppInstance {
