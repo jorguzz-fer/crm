@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Plus, Search, Download } from "lucide-react";
 import { LeadStatusBadge } from "@/components/leads/LeadStatusBadge";
+import { ScoreBadge } from "@/components/leads/ScoreBadge";
 import { ImportLeadsModal } from "@/components/leads/ImportLeadsModal";
 
 export const metadata: Metadata = { title: "Leads" };
@@ -147,6 +148,7 @@ export default async function LeadsPage({ searchParams }: Props) {
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden md:table-cell">Contato</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden lg:table-cell">Origem</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden sm:table-cell">Temp.</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden xl:table-cell">Responsável</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden lg:table-cell">Criado em</th>
               </tr>
@@ -171,6 +173,9 @@ export default async function LeadsPage({ searchParams }: Props) {
                   </td>
                   <td className="px-4 py-3">
                     <LeadStatusBadge status={lead.status} />
+                  </td>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    <ScoreBadge score={lead.score} label={lead.scoreLabel} />
                   </td>
                   <td className="px-4 py-3 hidden xl:table-cell text-muted-foreground">
                     {lead.assignee?.name ?? "—"}

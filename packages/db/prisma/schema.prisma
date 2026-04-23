@@ -231,6 +231,10 @@ model Lead {
   assignedTo   String?
   companyId    String?
   anonymizedAt DateTime?
+  // Scoring de temperatura (0-100)
+  score        Int?       // 0-100; null = nunca calculado
+  scoreLabel   String?    // "frio" | "morno" | "quente"
+  scoreUpdatedAt DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 

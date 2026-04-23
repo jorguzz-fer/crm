@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft, Pencil, Mail, Phone, Building2, Tag, User } from "lucide-react";
 import { LeadStatusBadge } from "@/components/leads/LeadStatusBadge";
+import { ScoreBadge } from "@/components/leads/ScoreBadge";
 import { AddNoteForm } from "@/components/leads/AddNoteForm";
 import { ConvertLeadModal } from "@/components/leads/ConvertLeadModal";
 import { deleteLeadAction } from "@/app/actions/leads";
@@ -75,6 +76,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold">{lead.name}</h1>
               <LeadStatusBadge status={lead.status} />
+              <ScoreBadge score={lead.score} label={lead.scoreLabel} showScore size="md" />
             </div>
             {lead.company && <p className="text-sm text-muted-foreground">{lead.company}</p>}
           </div>

@@ -27,3 +27,6 @@ export type { SummaryResult, SummaryResponse } from "./assistants/summarize";
 
 export { detectStaleLeads } from "./assistants/followUp";
 export type { LeadForFollowUp, StaleAlert } from "./assistants/followUp";
+
+export { scoreLeadHeuristic } from "./assistants/scoring";
+export type { LeadScoreInput, LeadScoreResult, ScoreLabel } from "./assistants/scoring";
