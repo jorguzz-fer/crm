@@ -1,0 +1,30 @@
+# Ambiente de testes (integration + E2E)
+# Uso: docker compose -f docker-compose.test.yml up -d
+#
+# Separado do docker-compose.dev.yml para:
+# - Isolar DB de dev do DB de testes (evita flakiness por dados residuais)
+# - Permitir rodar ambos em paralelo (porta diferente)
+# - CI usa este arquivo direto
+
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: crm_postgres_test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crm_test
+      POSTGRES_PASSWORD: crm_test_pass
+      POSTGRES_DB: crm_test
+    ports:
+      - "5435:5432" # 5434 é dev, 5435 é test
+    volumes:
+      - crm_postgres_test_data:/var/lib/postgresql/data
+      - ./tests/helpers/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm_test -d crm_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  crm_postgres_test_data:

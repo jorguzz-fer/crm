@@ -1,0 +1,23 @@
+{
+  "name": "@crm/jobs",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./events": "./src/events.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "inngest": "^3.28.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "vitest": "^4.1.4"
+  }
+}

@@ -30,3 +30,25 @@ export type { LeadForFollowUp, StaleAlert } from "./assistants/followUp";
 
 export { scoreLeadHeuristic } from "./assistants/scoring";
 export type { LeadScoreInput, LeadScoreResult, ScoreLabel } from "./assistants/scoring";
+
+export {
+  classifyLead,
+  classifierInputSchema,
+  classificationSchema,
+} from "./assistants/classifier";
+export type { ClassifierInput, Classification } from "./assistants/classifier";
+
+export {
+  generateFirstContact,
+  generateFollowUp,
+  firstContactInputSchema,
+  firstContactOutputSchema,
+  followUpInputSchema,
+  followUpOutputSchema,
+} from "./assistants/sdr";
+export type {
+  FirstContactInput,
+  FirstContactOutput,
+  FollowUpInput,
+  FollowUpOutput,
+} from "./assistants/sdr";
