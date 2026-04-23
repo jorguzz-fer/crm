@@ -539,6 +539,12 @@ enum WaStatus {
   CONNECTED
 }
 
+enum WaProvider {
+  EVOLUTION   // Evolution API (self-hosted, Baileys/WAWeb)
+  ZAPI        // Z-API (mesma base Baileys, API diferente)
+  META_CLOUD  // Meta WhatsApp Cloud API (oficial)
+}
+
 enum WaMessageType {
   TEXT
   IMAGE
@@ -585,14 +591,20 @@ model Visit {
 }
 
 model WhatsAppInstance {
-  id           String   @id @default(cuid())
-  tenantId     String   @unique
-  instanceName String   @unique
+  id           String     @id @default(cuid())
+  tenantId     String     @unique
+  instanceName String     @unique
+  provider     WaProvider @default(EVOLUTION)
   phone        String?
-  status       WaStatus @default(DISCONNECTED)
-  qrCode       String?  @db.Text
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  status       WaStatus   @default(DISCONNECTED)
+  qrCode       String?    @db.Text
+  // Meta Cloud API fields (null quando provider != META_CLOUD)
+  wabaId          String?
+  phoneNumberId   String?
+  accessTokenEnc  String?  @db.Text
+  webhookSecret   String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   conversations WhatsAppConversation[]

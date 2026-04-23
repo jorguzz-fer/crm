@@ -7,31 +7,14 @@ describe("createEvolutionAdapter", () => {
     const a = createEvolutionAdapter({
       baseUrl: "https://evo.example",
       apiKey: "k",
+      instanceName: "inst",
+      instancePhone: "+5511000000000",
     });
     expect(a.provider).toBe("evolution");
   });
 
-  it("sendMessage lança NotImplemented (Fase 1)", async () => {
-    const a = createEvolutionAdapter({
-      baseUrl: "https://evo.example",
-      apiKey: "k",
-    });
-    await expect(
-      a.sendMessage({
-        tenantId: "t1",
-        providerInstanceId: "i1",
-        toPhoneE164: "+5511999990000",
-        content: { type: "text", text: "oi" },
-        externalEventId: "x",
-      }),
-    ).rejects.toThrow(/not implemented/i);
-  });
-
-  // Contratos pendentes (Fase 1)
-  it.todo("sendMessage é idempotente via externalEventId (retry seguro)");
-  it.todo("verifyWebhookSignature valida header `apikey` contra instância");
-  it.todo("parseInbound normaliza evento messages.upsert do Evolution");
-  it.todo("parseInbound extrai ctwaClid quando presente (ads Meta → WhatsApp)");
+  // Contratos cobertos pelos arquivos evolution.*.test.ts
+  it.todo("sendMessage é idempotente via externalEventId (dedup no DB — Fase 3)");
   it.todo("tenant isolation: erra se providerInstanceId não pertence ao tenant");
 });
 
@@ -46,7 +29,7 @@ describe("createMetaCloudAdapter", () => {
     expect(a.provider).toBe("meta-cloud");
   });
 
-  it("sendMessage lança NotImplemented (Fase 1)", async () => {
+  it("sendMessage lança NotImplemented (Fase 1 — Meta Cloud pendente)", async () => {
     const a = createMetaCloudAdapter({
       appSecret: "s",
       accessToken: "t",
@@ -64,7 +47,6 @@ describe("createMetaCloudAdapter", () => {
     ).rejects.toThrow(/not implemented/i);
   });
 
-  // Contratos pendentes (Fase 1)
   it.todo("sendMessage usa Graph API v21.0 por default");
   it.todo("verifyWebhookSignature valida HMAC-SHA256 em x-hub-signature-256");
   it.todo("verifyWebhookSignature rejeita sem header de assinatura");
