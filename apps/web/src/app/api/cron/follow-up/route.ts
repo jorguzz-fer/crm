@@ -18,6 +18,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@crm/db";
 import { detectStaleLeads } from "@crm/ai";
+import { logAudit } from "@/lib/audit";
 
 const STALE_THRESHOLD_DAYS = 7;
 
@@ -95,7 +96,7 @@ export async function POST(req: Request) {
       });
 
       if (!existing) {
-        await prisma.aiFollowUpAlert.create({
+        const created = await prisma.aiFollowUpAlert.create({
           data: {
             tenantId: tenant.id,
             leadId: alert.leadId,
@@ -105,6 +106,15 @@ export async function POST(req: Request) {
           },
         });
         totalAlertsCreated++;
+
+        await logAudit({
+          tenantId: tenant.id,
+          userId: null, // ação do sistema (cronjob)
+          action: "ai.follow_up_alert",
+          entity: "AIFollowUpAlert",
+          entityId: created.id,
+          meta: { leadId: alert.leadId, daysStale: alert.daysStale, type: "SEM_INTERACAO" },
+        });
       }
     }
   }
