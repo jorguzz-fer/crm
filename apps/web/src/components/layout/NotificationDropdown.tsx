@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useTransition } from "react";
-import { Bell, AlertCircle, CheckSquare, MapPin, X } from "lucide-react";
+import { Bell, AlertCircle, CheckSquare, X } from "lucide-react";
 import Link from "next/link";
 import { dismissFollowUpAlertAction } from "@/app/actions/ai";
 

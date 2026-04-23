@@ -14,12 +14,6 @@ const ENTITY_LABEL: Record<string, string> = {
   Opportunity: "Oportunidade",
 };
 
-const SENTIMENT_COLOR: Record<string, string> = {
-  positivo: "text-green-600 bg-green-50",
-  neutro:   "text-yellow-600 bg-yellow-50",
-  negativo: "text-red-600 bg-red-50",
-};
-
 function fmt(n: number | null | undefined, decimals = 0) {
   if (n == null) return "—";
   return n.toLocaleString("pt-BR", { maximumFractionDigits: decimals });
@@ -159,7 +153,7 @@ export default async function IAPage() {
             </div>
             <div className="text-xs text-muted-foreground space-y-1">
               <p><span className="font-medium">Modelo:</span> Claude Sonnet 4.6 (via OpenRouter)</p>
-              <p><span className="font-medium">Como usar:</span> Abra um lead ou oportunidade → clique em "Resumir com IA"</p>
+              <p><span className="font-medium">Como usar:</span> Abra um lead ou oportunidade → clique em &quot;Resumir com IA&quot;</p>
             </div>
           </div>
 
@@ -234,7 +228,7 @@ export default async function IAPage() {
             <Brain size={32} className="text-muted-foreground/30" />
             <p className="text-sm text-muted-foreground">Nenhuma invocação registrada ainda.</p>
             <p className="text-xs text-muted-foreground">
-              Abra um lead ou oportunidade e clique em "Resumir com IA" para começar.
+              Abra um lead ou oportunidade e clique em &quot;Resumir com IA&quot; para começar.
             </p>
           </div>
         ) : (

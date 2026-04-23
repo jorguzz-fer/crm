@@ -53,7 +53,6 @@ import {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const TENANT_A   = "tenant-aaa";
-const TENANT_B   = "tenant-bbb";
 const USER_ID    = "user-001";
 
 // CUIDs mínimos válidos para o Zod (começa com "c", pelo menos 9 chars)
