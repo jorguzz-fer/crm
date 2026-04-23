@@ -50,6 +50,8 @@
     "next-auth": "^5.0.0-beta.29",
     "preact": "^10.24.3",
     "preact-render-to-string": "^6.5.11",
+    "pusher": "^5.3.3",
+    "pusher-js": "^8.5.0",
     "radix-ui": "^1.4.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

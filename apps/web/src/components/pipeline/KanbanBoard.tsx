@@ -12,8 +12,9 @@ import {
   closestCorners,
 } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
-import { useState, useOptimistic, useTransition } from "react";
+import { useState, useOptimistic, useTransition, useCallback } from "react";
 import { moveOpportunityAction } from "@/app/actions/opportunities";
+import { usePipelineRealtime } from "@/hooks/usePipelineRealtime";
 import { KanbanColumn } from "./KanbanColumn";
 import { OpportunityCard } from "./OpportunityCard";
 
@@ -41,7 +42,13 @@ type Pipeline = {
   stages: Stage[];
 };
 
-export function KanbanBoard({ pipeline }: { pipeline: Pipeline }) {
+interface KanbanBoardProps {
+  pipeline: Pipeline;
+  tenantId: string;
+  userId: string;
+}
+
+export function KanbanBoard({ pipeline, tenantId, userId }: KanbanBoardProps) {
   const [activeOpp, setActiveOpp] = useState<Opportunity | null>(null);
   const [, startTransition] = useTransition();
 
@@ -49,6 +56,24 @@ export function KanbanBoard({ pipeline }: { pipeline: Pipeline }) {
   const [stageMap, setStageMap] = useOptimistic(
     Object.fromEntries(pipeline.stages.map((s) => [s.id, s.opportunities])) as Record<string, Opportunity[]>
   );
+
+  // Real-time: atualiza o board quando outro usuário move um card
+  const handleRemoteMove = useCallback(
+    ({ opportunityId, fromStageId, toStageId }: { opportunityId: string; fromStageId: string; toStageId: string }) => {
+      setStageMap((prev) => {
+        const opp = prev[fromStageId]?.find((o) => o.id === opportunityId);
+        if (!opp || !prev[toStageId]) return prev;
+        return {
+          ...prev,
+          [fromStageId]: prev[fromStageId].filter((o) => o.id !== opportunityId),
+          [toStageId]: [opp, ...prev[toStageId]],
+        };
+      });
+    },
+    [setStageMap]
+  );
+
+  usePipelineRealtime({ tenantId, userId, onOpportunityMoved: handleRemoteMove });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })

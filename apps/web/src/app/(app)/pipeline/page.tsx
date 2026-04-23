@@ -76,7 +76,11 @@ export default async function PipelinePage() {
         />
       </div>
 
-      <KanbanBoard pipeline={pipeline} />
+      <KanbanBoard
+        pipeline={pipeline}
+        tenantId={tenantId}
+        userId={session!.user.id}
+      />
     </div>
   );
 }

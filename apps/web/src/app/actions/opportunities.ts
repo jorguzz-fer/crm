@@ -7,6 +7,7 @@ import type { OpportunityStatus } from "@crm/db";
 import { requireRole, ROLES_WRITE, ROLES_MANAGE } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 import { createOpportunitySchema } from "@crm/validators";
+import { emit, pipelineChannel } from "@/lib/soketi";
 
 export type ActionState = { error: string } | { success: true } | null;
 
@@ -102,14 +103,23 @@ export async function moveOpportunityAction(
     data: { stageId },
   });
 
-  await logAudit({
-    tenantId,
-    userId: session!.user.id,
-    action: "opportunity.move",
-    entity: "Opportunity",
-    entityId: opportunityId,
-    meta: { fromStage: opp.stageId, toStage: stageId },
-  });
+  await Promise.all([
+    logAudit({
+      tenantId,
+      userId: session!.user.id,
+      action: "opportunity.move",
+      entity: "Opportunity",
+      entityId: opportunityId,
+      meta: { fromStage: opp.stageId, toStage: stageId },
+    }),
+    // Emite evento real-time para todos os outros usuários do tenant
+    emit(pipelineChannel(tenantId), "opportunity.moved", {
+      opportunityId,
+      fromStageId: opp.stageId,
+      toStageId: stageId,
+      movedBy: session!.user.id,
+    }),
+  ]);
 
   revalidatePath("/pipeline");
 }
