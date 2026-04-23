@@ -62,8 +62,13 @@ jobs:
       - name: Prisma validate
         run: node_modules/.bin/prisma validate --schema=packages/db/prisma/schema.prisma
 
-      - name: Unit tests (Vitest — validators)
-        run: pnpm --filter @crm/validators run test
+      - name: Unit tests
+        run: |
+          pnpm --filter @crm/validators run test
+          pnpm --filter @crm/ai         run test
+          pnpm --filter @crm/jobs       run test
+          pnpm --filter @crm/tracking   run test
+          pnpm --filter @crm/whatsapp   run test
 
   # ─── E2E (Playwright) — job separado, roda em staging/CD ──────────────────
   # Para rodar localmente: E2E_ADMIN_EMAIL=... E2E_ADMIN_PASSWORD=... pnpm test:e2e
