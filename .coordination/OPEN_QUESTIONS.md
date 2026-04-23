@@ -4,51 +4,32 @@ Tópicos que precisam de alinhamento entre sessões (e, em alguns casos, com o u
 
 ---
 
-## 1. WhatsApp: Evolution API vs Meta Cloud API
+## 1. WhatsApp: Evolution API vs Meta Cloud API ✅ DECIDIDO
 
-**Estado atual:** Schema modelado para Evolution API (`WhatsAppInstance`, `WhatsAppConversation`, `WhatsAppMessage`).
+**Decisão (2026-04-23):** Ambos — **adapter pattern conforme previsto**.
+- Fase 1 (dev/testes internos): Evolution API ou Z-API
+- Produção real com clientes: Meta Cloud API oficial
 
-**Contexto:**
-- Evolution API é um wrapper não-oficial que usa Baileys/WhatsApp Web multi-device.
-- Meta Cloud API é o WhatsApp Business Platform oficial.
+**Schema change necessária (Fase 1):** adicionar campo `provider` (enum `EVOLUTION | ZAPI | META_CLOUD`) no model `WhatsAppInstance`, mais campos opcionais para Meta Cloud (`wabaId`, `phoneNumberId`, `accessTokenEnc`).
 
-**Tradeoffs:**
-
-| Critério | Evolution API | Meta Cloud API |
-|---|---|---|
-| Custo por msg | Grátis (self-hosted) | ~R$ 0,05–0,30/msg |
-| Risco de ban | **Alto** em escala/envio ativo | **Zero** (se seguir ToS) |
-| Setup pro cliente | QR code (número pessoal) | Embedded Signup (Business Manager) |
-| Multi-número/WABA | Limitado, por tenant | Nativo |
-| Templates aprovados | Não existe | Obrigatório p/ envio fora janela 24h |
-| Mídia rica (botões, listas) | Limitada | Completa |
-| Adequado pra SaaS B2B mid-market | ⚠️ arriscado | ✅ padrão da indústria |
-
-**Recomendação desta sessão:** **Adapter pattern** — `packages/whatsapp` expõe interface única, com 2 implementações (`evolution.ts`, `meta-cloud.ts`). Cliente escolhe no onboarding. Starter/Growth ficam em Evolution (cheap). Scale/Enterprise em Meta Cloud (oficial).
-
-**Schema change necessária:** `WhatsAppInstance.provider` (enum `EVOLUTION | META_CLOUD`). Meta Cloud requer campos adicionais (`wabaId`, `phoneNumberId`, `accessTokenEnc`, `qualityRating`, `messagingTier`).
-
-**Aguardando decisão:** usuário ou sessão CRM confirmar qual caminho seguir.
+**Impacto nos adapters:**
+- `src/adapters/evolution.ts` — implementar em Fase 1
+- `src/adapters/meta-cloud.ts` — implementar quando primeiro cliente real entrar
+- Z-API: mesma interface do Evolution (ambos são wrappers Baileys) — um único adapter cobre os dois com config diferente
 
 ---
 
-## 2. Claude via OpenRouter vs Anthropic SDK direto
+## 2. Claude via OpenRouter vs Anthropic SDK direto ✅ DECIDIDO
 
-**Estado atual:** `packages/ai` usa OpenRouter (`createOpenAI` com baseURL OpenRouter).
+**Decisão (2026-04-23):** **Manter OpenRouter por agora.** Migrar para Anthropic direto quando custo mensal superar ~$80 (ponto em que o caching paga a migração).
 
-**Tradeoffs:**
+**Racional:**
+- Hoje o volume ainda é zero — custo de migrar antes de ter dados reais é injustificado
+- A troca é mínima: `createOpenAI(OpenRouter)` → `createAnthropic()`, 1 arquivo (`packages/ai/src/index.ts`)
+- Vercel AI SDK abstrai o provider — chamadas de `classifyLead` e `generateFirstContact` não mudam
+- OpenRouter mantém flexibilidade para A/B testar outros modelos durante Fase 2
 
-| Critério | OpenRouter | Anthropic SDK direto |
-|---|---|---|
-| Billing | Único (OpenRouter) | Anthropic separado |
-| Fallback entre providers | Nativo | Manual |
-| Prompt caching | ⚠️ Depende de suporte no OpenRouter (atualmente inconsistente) | ✅ Nativo, 90% economia |
-| Surcharge | 5–10% | 0% |
-| Latência | +1 hop | direto |
-
-**Recomendação desta sessão:** para SDR em escala (muitas conversas, system prompts grandes), **prompt caching é crítico** — pode reduzir custo em 5–10x. Migrar `packages/ai` pra `@ai-sdk/anthropic` direto. OpenRouter pode ficar como fallback em `@ai-sdk/openai` pra models não-Claude (ex: se quiser A/B testar GPT-5).
-
-**Aguardando decisão:** usuário.
+**Trigger para migrar:** primeira fatura > $80/mês ou quando caching de system prompt valer mais que conveniência do multi-provider.
 
 ---
 
