@@ -11,6 +11,7 @@ import { ConvertLeadModal } from "@/components/leads/ConvertLeadModal";
 import { deleteLeadAction } from "@/app/actions/leads";
 import { SummarizeButton } from "@/components/ai/SummarizeButton";
 import { summarizeLeadAction } from "@/app/actions/ai";
+import { WhatsAppThread } from "@/components/whatsapp/WhatsAppThread";
 
 const SOURCE_LABELS: Record<string, string> = {
   WEBSITE: "Website", WHATSAPP: "WhatsApp", INSTAGRAM: "Instagram",
@@ -63,6 +64,27 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     include: { stages: { orderBy: { order: "asc" }, select: { id: true, name: true, pipelineId: true } } },
   });
   const pipelineStages = pipeline?.stages ?? [];
+
+  // WhatsApp: conversas vinculadas ao lead
+  const [waConversations, waInstance] = await Promise.all([
+    prisma.whatsAppConversation.findMany({
+      where: { leadId: lead.id, tenantId: session!.user.tenantId },
+      include: {
+        messages: {
+          orderBy: { timestamp: "asc" },
+          take: 100,
+          select: { id: true, fromMe: true, body: true, mediaType: true, timestamp: true, status: true },
+        },
+      },
+      orderBy: { lastMessageAt: "desc" },
+    }),
+    prisma.whatsAppInstance.findUnique({
+      where: { tenantId: session!.user.tenantId },
+      select: { status: true },
+    }),
+  ]);
+
+  const waConnected = waInstance?.status === "CONNECTED";
 
   return (
     <div className="space-y-6">
@@ -163,6 +185,34 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             </div>
           )}
         </div>
+
+        {/* WhatsApp */}
+        {(waConversations.length > 0 || waConnected) && (
+          <div className="lg:col-span-2 space-y-2">
+            <div className="rounded-lg border border-border bg-card p-4">
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+                WhatsApp
+              </h2>
+              <WhatsAppThread
+                conversations={waConversations.map((c) => ({
+                  id: c.id,
+                  remotePhone: c.remotePhone,
+                  remoteName: c.remoteName,
+                  messages: c.messages.map((m) => ({
+                    id: m.id,
+                    fromMe: m.fromMe,
+                    body: m.body,
+                    mediaType: m.mediaType,
+                    timestamp: m.timestamp,
+                    status: m.status,
+                  })),
+                }))}
+                waConnected={waConnected}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Timeline */}
         <div className="lg:col-span-2 space-y-4">
