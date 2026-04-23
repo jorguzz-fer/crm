@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Kanban, Building2, Contact, Calendar, CheckSquare, Activity, Settings, ChevronRight, MessageCircle, BarChart2, MapPin } from "lucide-react";
+import { LayoutDashboard, Users, Kanban, Building2, Contact, Calendar, CheckSquare, Activity, Settings, ChevronRight, MessageCircle, BarChart2, MapPin, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -15,6 +15,7 @@ const nav = [
   { href: "/atividades",    label: "Atividades",    icon: Activity },
   { href: "/visitas",       label: "Visitas",       icon: MapPin },
   { href: "/relatorios",    label: "Relatórios",    icon: BarChart2 },
+  { href: "/ia",            label: "Inteligência IA", icon: Brain },
   { href: "/empresas",      label: "Empresas",      icon: Building2 },
   { href: "/contatos",      label: "Contatos",      icon: Contact },
   { href: "/configuracoes", label: "Configurações", icon: Settings },

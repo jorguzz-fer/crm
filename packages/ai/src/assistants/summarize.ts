@@ -10,6 +10,13 @@ export const summarySchema = z.object({
 
 export type SummaryResult = z.infer<typeof summarySchema>;
 
+export interface SummaryResponse {
+  result:    SummaryResult;
+  model:     string;
+  tokens:    number;
+  latencyMs: number;
+}
+
 interface SummarizeInput {
   entityType: "lead" | "oportunidade";
   entityName: string;
@@ -22,7 +29,7 @@ const ACTIVITY_LABEL: Record<string, string> = {
   WHATSAPP: "WhatsApp", VISITA: "Visita", OUTRO: "Outro",
 };
 
-export async function summarize(input: SummarizeInput): Promise<SummaryResult> {
+export async function summarize(input: SummarizeInput): Promise<SummaryResponse> {
   const { entityType, entityName, notes, activities } = input;
 
   const notesText = notes
@@ -35,7 +42,8 @@ export async function summarize(input: SummarizeInput): Promise<SummaryResult> {
 
   const hasContext = notes.length > 0 || activities.length > 0;
 
-  const result = await generateObject({
+  const t0 = Date.now();
+  const res = await generateObject({
     model: openrouter(MODELS.summarize),
     schema: summarySchema,
     system: `Você é um assistente especializado em CRM comercial.
@@ -49,5 +57,10 @@ ${hasContext ? [
 ].filter(Boolean).join("\n\n") : "Não há histórico registrado ainda."}`,
   });
 
-  return result.object;
+  return {
+    result:    res.object,
+    model:     MODELS.summarize,
+    tokens:    (res.usage?.totalTokens ?? 0),
+    latencyMs: Date.now() - t0,
+  };
 }

@@ -43,7 +43,7 @@ export async function summarizeLeadAction(
   }
 
   try {
-    const result = await summarize({
+    const res = await summarize({
       entityType: "lead",
       entityName: lead.name,
       notes: lead.notes.map((n) => ({ content: n.content, author: n.user.name, date: n.createdAt })),
@@ -52,15 +52,30 @@ export async function summarizeLeadAction(
       })),
     });
 
-    await logAudit({
-      tenantId,
-      userId: session!.user.id,
-      action: "ai.summarize",
-      entity: "Lead",
-      entityId: leadId,
-    });
+    await Promise.all([
+      logAudit({
+        tenantId,
+        userId: session!.user.id,
+        action: "ai.summarize",
+        entity: "Lead",
+        entityId: leadId,
+        meta: { tokens: res.tokens, latencyMs: res.latencyMs, model: res.model },
+      }),
+      prisma.aiInvocationLog.create({
+        data: {
+          tenantId,
+          userId: session!.user.id,
+          assistant: "summarize",
+          entityType: "Lead",
+          entityId: leadId,
+          tokens: res.tokens,
+          latencyMs: res.latencyMs,
+          model: res.model,
+        },
+      }),
+    ]);
 
-    return { result };
+    return { result: res.result };
   } catch {
     return { error: "Falha ao gerar resumo. Verifique a chave da API e tente novamente." };
   }
@@ -120,7 +135,7 @@ export async function summarizeOpportunityAction(
   }
 
   try {
-    const result = await summarize({
+    const res = await summarize({
       entityType: "oportunidade",
       entityName: opp.title,
       notes: opp.notes.map((n) => ({ content: n.content, author: n.user.name, date: n.createdAt })),
@@ -129,15 +144,30 @@ export async function summarizeOpportunityAction(
       })),
     });
 
-    await logAudit({
-      tenantId,
-      userId: session!.user.id,
-      action: "ai.summarize",
-      entity: "Opportunity",
-      entityId: opportunityId,
-    });
+    await Promise.all([
+      logAudit({
+        tenantId,
+        userId: session!.user.id,
+        action: "ai.summarize",
+        entity: "Opportunity",
+        entityId: opportunityId,
+        meta: { tokens: res.tokens, latencyMs: res.latencyMs, model: res.model },
+      }),
+      prisma.aiInvocationLog.create({
+        data: {
+          tenantId,
+          userId: session!.user.id,
+          assistant: "summarize",
+          entityType: "Opportunity",
+          entityId: opportunityId,
+          tokens: res.tokens,
+          latencyMs: res.latencyMs,
+          model: res.model,
+        },
+      }),
+    ]);
 
-    return { result };
+    return { result: res.result };
   } catch {
     return { error: "Falha ao gerar resumo. Verifique a chave da API e tente novamente." };
   }
