@@ -2,8 +2,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@crm/db";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Download } from "lucide-react";
 import { LeadStatusBadge } from "@/components/leads/LeadStatusBadge";
+import { ImportLeadsModal } from "@/components/leads/ImportLeadsModal";
 
 export const metadata: Metadata = { title: "Leads" };
 
@@ -27,7 +28,7 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 interface Props {
-  searchParams: Promise<{ q?: string; status?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; page?: string; exportar?: string }>;
 }
 
 export default async function LeadsPage({ searchParams }: Props) {
@@ -67,18 +68,32 @@ export default async function LeadsPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Leads</h1>
           <p className="text-sm text-muted-foreground">{total} lead{total !== 1 ? "s" : ""} encontrado{total !== 1 ? "s" : ""}</p>
         </div>
-        <Link
-          href="/leads/new"
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus size={16} />
-          Novo lead
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Exportar CSV (passa filtros ativos) */}
+          <a
+            href={`/api/leads/export${q || status ? `?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}` : ""}`}
+            download
+            className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent"
+          >
+            <Download size={15} />
+            Exportar CSV
+          </a>
+          {/* Importar em lote */}
+          <ImportLeadsModal />
+          {/* Novo lead */}
+          <Link
+            href="/leads/new"
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus size={16} />
+            Novo lead
+          </Link>
+        </div>
       </div>
 
       {/* Filtros */}
