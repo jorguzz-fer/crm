@@ -29,6 +29,9 @@ COPY packages/ui/src ./packages/ui/src
 FROM node:22-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+# Limita heap do Node a 1.5 GB para evitar OOM em VPS com pouca RAM.
+# Para VPS com 4 GB+ use 2048; para 2 GB use 1536; para 1 GB use 896.
+ENV NODE_OPTIONS=--max-old-space-size=1536
 RUN apk add --no-cache libc6-compat
 RUN npm install -g pnpm@10
 
