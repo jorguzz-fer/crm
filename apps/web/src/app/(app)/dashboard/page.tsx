@@ -2,11 +2,16 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@crm/db";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   Users, Kanban, CheckSquare, TrendingUp,
   ArrowRight, Clock, AlertCircle,
 } from "lucide-react";
 import { FollowUpAlerts } from "@/components/ai/FollowUpAlerts";
+import { LeadsChart }   from "@/components/dashboard/LeadsChart";
+import { PipelineChart } from "@/components/dashboard/PipelineChart";
+import { SourceDonut }  from "@/components/dashboard/SourceDonut";
+import { PeriodFilter } from "@/components/dashboard/PeriodFilter";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -22,13 +27,36 @@ function endOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
 }
 
-export default async function DashboardPage() {
+// Gera array de datas dos últimos N dias
+function lastNDays(n: number): Date[] {
+  const days: Date[] = [];
+  const now = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    days.push(startOfDay(d));
+  }
+  return days;
+}
+
+interface Props {
+  searchParams: Promise<{ days?: string }>;
+}
+
+export default async function DashboardPage({ searchParams }: Props) {
   const session = await auth();
   const tenantId = session!.user.tenantId;
   const now = new Date();
   const todayStart = startOfDay(now);
   const monthStart = startOfMonth(now);
-  const monthEnd = endOfMonth(now);
+  const monthEnd   = endOfMonth(now);
+
+  // Período selecionado (7 | 30 | 90 dias)
+  const params = await searchParams;
+  const periodDays = Number(params.days ?? "30");
+  const validDays  = [7, 30, 90].includes(periodDays) ? periodDays : 30;
+  const periodStart = new Date(now);
+  periodStart.setDate(periodStart.getDate() - validDays);
 
   const [
     leadsHoje,
@@ -42,26 +70,19 @@ export default async function DashboardPage() {
     ultimosLeads,
     ultimasAtividades,
     followUpAlerts,
+    // Dados para gráficos
+    leadsPorDia,
+    leadsPorSource,
+    oppsByStage,
   ] = await Promise.all([
-    // Leads criados hoje
     prisma.lead.count({ where: { tenantId, createdAt: { gte: todayStart } } }),
-
-    // Total de leads (para taxa de conversão)
     prisma.lead.count({ where: { tenantId } }),
-
-    // Leads convertidos (para taxa de conversão)
     prisma.lead.count({ where: { tenantId, status: "CONVERTIDO" } }),
-
-    // Oportunidades abertas
     prisma.opportunity.count({ where: { tenantId, status: "ABERTA" } }),
-
-    // Valor total do pipeline aberto
     prisma.opportunity.aggregate({
       where: { tenantId, status: "ABERTA" },
       _sum: { value: true },
     }),
-
-    // Oportunidades previstas para fechar este mês
     prisma.opportunity.aggregate({
       where: {
         tenantId,
@@ -70,13 +91,9 @@ export default async function DashboardPage() {
       },
       _sum: { value: true },
     }),
-
-    // Tarefas atrasadas (vencidas e não concluídas)
     prisma.task.count({
       where: { tenantId, completedAt: null, dueAt: { lt: todayStart } },
     }),
-
-    // Tarefas para hoje
     prisma.task.count({
       where: {
         tenantId,
@@ -84,16 +101,12 @@ export default async function DashboardPage() {
         dueAt: { gte: todayStart, lt: new Date(todayStart.getTime() + 86400000) },
       },
     }),
-
-    // Últimos 5 leads
     prisma.lead.findMany({
       where: { tenantId },
       orderBy: { createdAt: "desc" },
       take: 5,
       select: { id: true, name: true, company: true, status: true, source: true, createdAt: true },
     }),
-
-    // Últimas 5 atividades
     prisma.activity.findMany({
       where: { tenantId },
       orderBy: { occurredAt: "desc" },
@@ -104,8 +117,6 @@ export default async function DashboardPage() {
         opportunity: { select: { id: true, title: true } },
       },
     }),
-
-    // Alertas de acompanhamento não dispensados (últimos 7 dias)
     prisma.aiFollowUpAlert.findMany({
       where: {
         tenantId,
@@ -115,18 +126,75 @@ export default async function DashboardPage() {
       orderBy: [{ daysStale: "desc" }, { createdAt: "desc" }],
       take: 10,
       select: {
-        id: true,
-        leadId: true,
-        message: true,
-        daysStale: true,
+        id: true, leadId: true, message: true, daysStale: true,
         lead: { select: { name: true } },
+      },
+    }),
+
+    // Leads criados por dia no período selecionado
+    prisma.lead.findMany({
+      where: { tenantId, createdAt: { gte: periodStart } },
+      select: { createdAt: true },
+      orderBy: { createdAt: "asc" },
+    }),
+
+    // Leads por origem no período selecionado
+    prisma.lead.groupBy({
+      by: ["source"],
+      where: { tenantId, createdAt: { gte: periodStart } },
+      _count: true,
+    }),
+
+    // Oportunidades abertas por estágio
+    prisma.opportunity.findMany({
+      where: { tenantId, status: "ABERTA" },
+      select: {
+        stageId: true,
+        value:   true,
+        stage:   { select: { name: true, color: true, order: true } },
       },
     }),
   ]);
 
+  // ── Processar dados dos gráficos ──────────────────────────────────────────
+
   const taxaConversao = leadsTotal > 0 ? Math.round((leadsConvertidos / leadsTotal) * 100) : 0;
   const pipelineValue = Number(oppsPipelineValue._sum.value ?? 0);
-  const metaMesValue = Number(oppsMetaMes._sum.value ?? 0);
+  const metaMesValue  = Number(oppsMetaMes._sum.value ?? 0);
+
+  // Leads por dia — preenche zeros nos dias sem lead
+  const days = lastNDays(validDays);
+  const leadCountByDay = new Map<string, number>();
+  for (const lead of leadsPorDia) {
+    const key = startOfDay(lead.createdAt).toISOString();
+    leadCountByDay.set(key, (leadCountByDay.get(key) ?? 0) + 1);
+  }
+  const leadsChartData = days.map((d) => ({
+    date: d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+    leads: leadCountByDay.get(d.toISOString()) ?? 0,
+  }));
+
+  // Leads por source
+  const sourceChartData = leadsPorSource
+    .sort((a, b) => b._count - a._count)
+    .map((g) => ({ name: g.source, value: g._count }));
+
+  // Oportunidades por estágio (valor + quantidade)
+  const stageMap = new Map<string, { name: string; color: string; order: number; count: number; value: number }>();
+  for (const opp of oppsByStage) {
+    const s = opp.stage;
+    if (!stageMap.has(opp.stageId)) {
+      stageMap.set(opp.stageId, { name: s.name, color: s.color ?? "#6366f1", order: s.order, count: 0, value: 0 });
+    }
+    const entry = stageMap.get(opp.stageId)!;
+    entry.count++;
+    entry.value += Number(opp.value ?? 0);
+  }
+  const pipelineChartData = [...stageMap.values()]
+    .sort((a, b) => a.order - b.order)
+    .map((s) => ({ name: s.name, count: s.count, value: s.value, color: s.color }));
+
+  // ── Labels ───────────────────────────────────────────────────────────────
 
   const STATUS_LABEL: Record<string, string> = {
     NOVO: "Novo", EM_CONTATO: "Em contato", QUALIFICADO: "Qualificado",
@@ -144,13 +212,18 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Saudação */}
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Bom dia, {session?.user.name?.split(" ")[0]} —{" "}
-          {now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
-        </p>
+      {/* Header com filtro de período */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Bom dia, {session?.user.name?.split(" ")[0]} —{" "}
+            {now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
+          </p>
+        </div>
+        <Suspense>
+          <PeriodFilter current={String(validDays)} />
+        </Suspense>
       </div>
 
       {/* Alertas de tarefas */}
@@ -169,11 +242,8 @@ export default async function DashboardPage() {
       {/* Alertas de acompanhamento (IA) */}
       <FollowUpAlerts
         alerts={followUpAlerts.map((a) => ({
-          id: a.id,
-          leadId: a.leadId,
-          leadName: a.lead?.name ?? null,
-          message: a.message,
-          daysStale: a.daysStale,
+          id: a.id, leadId: a.leadId, leadName: a.lead?.name ?? null,
+          message: a.message, daysStale: a.daysStale,
         }))}
       />
 
@@ -211,6 +281,30 @@ export default async function DashboardPage() {
           href="/pipeline"
           color="green"
         />
+      </div>
+
+      {/* ── Gráficos ── */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Leads por dia */}
+        <div className="lg:col-span-2 rounded-lg border border-border bg-card p-5">
+          <h2 className="mb-1 text-sm font-semibold">Leads recebidos</h2>
+          <p className="mb-4 text-xs text-muted-foreground">Últimos {validDays} dias</p>
+          <LeadsChart data={leadsChartData} />
+        </div>
+
+        {/* Origens */}
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h2 className="mb-1 text-sm font-semibold">Origens dos leads</h2>
+          <p className="mb-4 text-xs text-muted-foreground">Últimos {validDays} dias</p>
+          <SourceDonut data={sourceChartData} />
+        </div>
+      </div>
+
+      {/* Pipeline por estágio */}
+      <div className="rounded-lg border border-border bg-card p-5">
+        <h2 className="mb-1 text-sm font-semibold">Oportunidades por estágio</h2>
+        <p className="mb-4 text-xs text-muted-foreground">Oportunidades abertas agora</p>
+        <PipelineChart data={pipelineChartData} />
       </div>
 
       {/* Tabelas */}
