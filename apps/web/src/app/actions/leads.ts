@@ -191,3 +191,73 @@ export async function createNoteAction(
   revalidatePath(`/leads/${leadId}`);
   return { success: true };
 }
+
+export async function convertLeadAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState & { opportunityId?: string }> {
+  const { session, error } = await requireRole(ROLES_WRITE);
+  if (error) return { error: "Sem permissão" };
+
+  const leadId  = formData.get("leadId") as string;
+  const stageId = formData.get("stageId") as string;
+  const title   = (formData.get("title") as string)?.trim();
+  const rawValue = formData.get("value") as string;
+  const tenantId = session!.user.tenantId;
+
+  if (!leadId || !stageId || !title) return { error: "Dados obrigatórios ausentes" };
+
+  // Valida lead pertence ao tenant e ainda não convertido
+  const lead = await prisma.lead.findFirst({
+    where: { id: leadId, tenantId },
+    select: { id: true, name: true, status: true },
+  });
+  if (!lead) return { error: "Lead não encontrado" };
+  if (lead.status === "CONVERTIDO") return { error: "Lead já foi convertido" };
+
+  // Valida stage pertence ao tenant
+  const stage = await prisma.stage.findFirst({
+    where: { id: stageId, tenantId },
+    select: { id: true, pipelineId: true },
+  });
+  if (!stage) return { error: "Estágio inválido" };
+
+  const value = rawValue ? parseFloat(rawValue) : null;
+
+  // Cria oportunidade + atualiza status do lead em transação
+  const opportunity = await prisma.$transaction(async (tx) => {
+    const opp = await tx.opportunity.create({
+      data: {
+        tenantId,
+        pipelineId: stage.pipelineId,
+        stageId,
+        title,
+        value: value && !isNaN(value) ? value : null,
+        leadId,
+        assignedTo: session!.user.id,
+      },
+    });
+
+    await tx.lead.update({
+      where: { id: leadId },
+      data: { status: "CONVERTIDO" },
+    });
+
+    return opp;
+  });
+
+  await logAudit({
+    tenantId,
+    userId: session!.user.id,
+    action: "lead.convert",
+    entity: "Lead",
+    entityId: leadId,
+    meta: { opportunityId: opportunity.id, title, stageId },
+  });
+
+  revalidatePath(`/leads/${leadId}`);
+  revalidatePath("/pipeline");
+  revalidatePath("/leads");
+
+  redirect(`/pipeline/${opportunity.id}`);
+}

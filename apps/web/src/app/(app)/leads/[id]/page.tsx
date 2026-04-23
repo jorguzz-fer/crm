@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { ArrowLeft, Pencil, Mail, Phone, Building2, Tag, User } from "lucide-react";
 import { LeadStatusBadge } from "@/components/leads/LeadStatusBadge";
 import { AddNoteForm } from "@/components/leads/AddNoteForm";
+import { ConvertLeadModal } from "@/components/leads/ConvertLeadModal";
 import { deleteLeadAction } from "@/app/actions/leads";
 import { SummarizeButton } from "@/components/ai/SummarizeButton";
 import { summarizeLeadAction } from "@/app/actions/ai";
@@ -54,6 +55,14 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
   if (!lead) notFound();
 
+  // Busca estágios do pipeline padrão para o modal de conversão
+  const pipeline = await prisma.pipeline.findFirst({
+    where: { tenantId: session!.user.tenantId },
+    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+    include: { stages: { orderBy: { order: "asc" }, select: { id: true, name: true, pipelineId: true } } },
+  });
+  const pipelineStages = pipeline?.stages ?? [];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -70,7 +79,14 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             {lead.company && <p className="text-sm text-muted-foreground">{lead.company}</p>}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          {lead.status !== "CONVERTIDO" && pipelineStages.length > 0 && (
+            <ConvertLeadModal
+              leadId={lead.id}
+              leadName={lead.name}
+              stages={pipelineStages}
+            />
+          )}
           <Link
             href={`/leads/${lead.id}/edit`}
             className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-accent"
