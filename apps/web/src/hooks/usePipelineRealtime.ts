@@ -28,7 +28,15 @@ export function usePipelineRealtime({ tenantId, userId, onOpportunityMoved }: Op
   useEffect(() => {
     const appKey = process.env.NEXT_PUBLIC_SOKETI_APP_KEY;
     const host   = process.env.NEXT_PUBLIC_SOKETI_HOST;
+
+    // Debug — remover após confirmar funcionamento
+    console.log("[realtime] SOKETI_APP_KEY:", appKey ? `${appKey.slice(0, 8)}…` : "NÃO DEFINIDO");
+    console.log("[realtime] SOKETI_HOST:", host ?? "NÃO DEFINIDO");
+
     if (!appKey || !host) return; // Soketi não configurado — modo silencioso
+
+    // Ativa logs do Pusher no console (remover em produção após debug)
+    Pusher.logToConsole = true;
 
     const pusher = new Pusher(appKey, {
       wsHost:           host,
