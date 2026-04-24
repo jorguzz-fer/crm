@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import path from "node:path";
 
 const securityHeaders = [
   {
@@ -47,6 +48,10 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Aponta a raiz do monorepo para o @vercel/nft ("Collecting build traces").
+  // Sem isso o NFT sobe a árvore tentando adivinhar onde está a raiz, escaneia
+  // node_modules acima do necessário e estoura RAM no VPS Coolify.
+  outputFileTracingRoot: path.join(__dirname, "../../"),
   poweredByHeader: false,
   // Type check e lint são rodados localmente e na CI (pnpm tsc + next lint).
   // No build do Docker (VPS com RAM limitada) o tsc OOM-killa o processo após
