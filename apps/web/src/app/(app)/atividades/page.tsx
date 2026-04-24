@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { Phone, Mail, Users, MessageSquare, MapPin, Activity, Trash2 } from "lucide-react";
 import { deleteActivityAction } from "@/app/actions/activities";
 import { CreateActivityForm } from "@/components/atividades/CreateActivityForm";
+import { ActivityUserFilter } from "@/components/atividades/ActivityUserFilter";
 
 export const metadata: Metadata = { title: "Atividades" };
 
@@ -119,14 +120,7 @@ export default async function AtividadesPage({ searchParams }: Props) {
               );
             })}
             {users.length > 1 && (
-              <select
-                onChange={(e) => { window.location.href = buildUrl({ userId: e.target.value, page: "1" }); }}
-                defaultValue={filterUserId}
-                className="ml-auto rounded-md border border-input bg-background px-2 py-1 text-xs focus-visible:outline-none"
-              >
-                <option value="">Todos usuários</option>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
+              <ActivityUserFilter users={users} filterUserId={filterUserId} />
             )}
           </div>
 

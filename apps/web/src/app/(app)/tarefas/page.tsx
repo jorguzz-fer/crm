@@ -2,9 +2,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@crm/db";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { CheckSquare, AlertCircle, Clock, Filter } from "lucide-react";
+import { CheckSquare, AlertCircle, Clock } from "lucide-react";
 import { completeTaskAction, deleteTaskAction } from "@/app/actions/tasks";
 import { CreateTaskForm } from "@/components/tarefas/CreateTaskForm";
+import { TaskFilters } from "@/components/tarefas/TaskFilters";
 
 export const metadata: Metadata = { title: "Tarefas" };
 
@@ -146,26 +147,11 @@ export default async function TarefasPage({ searchParams }: Props) {
         ))}
 
         <div className="ml-auto flex items-center gap-2 pb-1">
-          <Filter size={14} className="text-muted-foreground" />
-          <select
-            onChange={(e) => { window.location.href = buildUrl({ priority: e.target.value }); }}
-            defaultValue={filterPriority}
-            className="rounded-md border border-input bg-background px-2 py-1 text-xs focus-visible:outline-none"
-          >
-            <option value="">Todas prioridades</option>
-            <option value="URGENTE">Urgente</option>
-            <option value="ALTA">Alta</option>
-            <option value="MEDIA">Média</option>
-            <option value="BAIXA">Baixa</option>
-          </select>
-          <select
-            onChange={(e) => { window.location.href = buildUrl({ assignedTo: e.target.value }); }}
-            defaultValue={filterAssignedTo}
-            className="rounded-md border border-input bg-background px-2 py-1 text-xs focus-visible:outline-none"
-          >
-            <option value="">Todos responsáveis</option>
-            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-          </select>
+          <TaskFilters
+            users={users}
+            filterPriority={filterPriority}
+            filterAssignedTo={filterAssignedTo}
+          />
         </div>
       </div>
 
