@@ -38,6 +38,8 @@ export function usePipelineRealtime({ tenantId, userId, onOpportunityMoved }: Op
       disableStats:     true,
       enabledTransports: ["ws", "wss"],
       cluster:          "mt1", // ignorado pelo Soketi — obrigatório pela tipagem do pusher-js
+      // Endpoint de auth para canais private-* (obrigatório para Soketi)
+      authEndpoint:     "/api/pusher/auth",
     });
 
     const channel = pusher.subscribe(`private-pipeline-${tenantId}`);
