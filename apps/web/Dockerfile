@@ -14,6 +14,9 @@ COPY packages/db/package.json ./packages/db/
 COPY packages/validators/package.json ./packages/validators/
 COPY packages/ai/package.json ./packages/ai/
 COPY packages/ui/package.json ./packages/ui/
+COPY packages/jobs/package.json ./packages/jobs/
+COPY packages/tracking/package.json ./packages/tracking/
+COPY packages/whatsapp/package.json ./packages/whatsapp/
 
 RUN pnpm install --no-frozen-lockfile
 
@@ -24,6 +27,9 @@ COPY packages/db/src ./packages/db/src
 COPY packages/validators/src ./packages/validators/src
 COPY packages/ai/src ./packages/ai/src
 COPY packages/ui/src ./packages/ui/src
+COPY packages/jobs/src ./packages/jobs/src
+COPY packages/tracking/src ./packages/tracking/src
+COPY packages/whatsapp/src ./packages/whatsapp/src
 
 # ─── Stage 2: builder ────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
@@ -42,11 +48,15 @@ COPY . .
 # Docker preserva symlinks do COPY --from mas o target precisa existir;
 # ln -sf garante resolução correta independente do comportamento do runtime pnpm
 RUN mkdir -p node_modules/@crm && \
-    rm -rf node_modules/@crm/db node_modules/@crm/validators node_modules/@crm/ai node_modules/@crm/ui && \
+    rm -rf node_modules/@crm/db node_modules/@crm/validators node_modules/@crm/ai node_modules/@crm/ui \
+           node_modules/@crm/jobs node_modules/@crm/tracking node_modules/@crm/whatsapp && \
     ln -sf /app/packages/db         node_modules/@crm/db && \
     ln -sf /app/packages/validators node_modules/@crm/validators && \
     ln -sf /app/packages/ai         node_modules/@crm/ai && \
-    ln -sf /app/packages/ui         node_modules/@crm/ui
+    ln -sf /app/packages/ui         node_modules/@crm/ui && \
+    ln -sf /app/packages/jobs       node_modules/@crm/jobs && \
+    ln -sf /app/packages/tracking   node_modules/@crm/tracking && \
+    ln -sf /app/packages/whatsapp   node_modules/@crm/whatsapp
 
 # usa binary local — NÃO usa npx (baixaria Prisma v7 quebrando o schema v6)
 RUN node_modules/.bin/prisma generate --schema=packages/db/prisma/schema.prisma
