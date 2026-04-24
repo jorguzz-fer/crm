@@ -12,9 +12,10 @@ import {
   closestCorners,
 } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
-import { useState, useOptimistic, useTransition, useCallback } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { moveOpportunityAction } from "@/app/actions/opportunities";
-import { usePipelineRealtime } from "@/hooks/usePipelineRealtime";
+// usePipelineRealtime está desacoplado — reativar na V2 quando Soketi estiver estável
+// import { usePipelineRealtime } from "@/hooks/usePipelineRealtime";
 import { KanbanColumn } from "./KanbanColumn";
 import { OpportunityCard } from "./OpportunityCard";
 
@@ -44,36 +45,24 @@ type Pipeline = {
 
 interface KanbanBoardProps {
   pipeline: Pipeline;
-  tenantId: string;
-  userId: string;
+  tenantId?: string;
+  userId?: string;
 }
 
-export function KanbanBoard({ pipeline, tenantId, userId }: KanbanBoardProps) {
+export function KanbanBoard({ pipeline }: KanbanBoardProps) {
   const [activeOpp, setActiveOpp] = useState<Opportunity | null>(null);
   const [, startTransition] = useTransition();
 
-  // Optimistic state: mapa stageId → opportunities[]
-  const [stageMap, setStageMap] = useOptimistic(
-    Object.fromEntries(pipeline.stages.map((s) => [s.id, s.opportunities])) as Record<string, Opportunity[]>
+  // useState em vez de useOptimistic: useOptimistic reverte fora de startTransition,
+  // quebrando o visual do drag (onDragOver roda fora de qualquer transition).
+  const [stageMap, setStageMap] = useState<Record<string, Opportunity[]>>(
+    () => Object.fromEntries(pipeline.stages.map((s) => [s.id, s.opportunities]))
   );
 
-  // Real-time: atualiza o board quando outro usuário move um card
-  const handleRemoteMove = useCallback(
-    ({ opportunityId, fromStageId, toStageId }: { opportunityId: string; fromStageId: string; toStageId: string }) => {
-      setStageMap((prev) => {
-        const opp = prev[fromStageId]?.find((o) => o.id === opportunityId);
-        if (!opp || !prev[toStageId]) return prev;
-        return {
-          ...prev,
-          [fromStageId]: prev[fromStageId].filter((o) => o.id !== opportunityId),
-          [toStageId]: [opp, ...prev[toStageId]],
-        };
-      });
-    },
-    [setStageMap]
-  );
-
-  usePipelineRealtime({ tenantId, userId, onOpportunityMoved: handleRemoteMove });
+  // Sincroniza quando o servidor revalida os dados (ex: após moveOpportunityAction)
+  useEffect(() => {
+    setStageMap(Object.fromEntries(pipeline.stages.map((s) => [s.id, s.opportunities])));
+  }, [pipeline]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
