@@ -32,12 +32,22 @@ export async function createTaskAction(
   const data = parsed.data;
   const tenantId = session!.user.tenantId;
 
-  // Valida assignedTo pertence ao tenant
+  // Valida FKs pertencem ao tenant
   const assignee = await prisma.user.findFirst({
     where: { id: data.assignedTo, tenantId },
     select: { id: true },
   });
   if (!assignee) return { error: "Responsável inválido" };
+
+  if (data.leadId) {
+    const lead = await prisma.lead.findFirst({ where: { id: data.leadId, tenantId }, select: { id: true } });
+    if (!lead) return { error: "Lead inválido" };
+  }
+
+  if (data.opportunityId) {
+    const opp = await prisma.opportunity.findFirst({ where: { id: data.opportunityId, tenantId }, select: { id: true } });
+    if (!opp) return { error: "Oportunidade inválida" };
+  }
 
   const task = await prisma.task.create({
     data: {

@@ -41,9 +41,11 @@ export default async function LeadsPage({ searchParams }: Props) {
   const page = Math.max(1, Number(params.page) || 1);
   const perPage = 20;
 
+  const VALID_STATUSES = new Set(["NOVO", "EM_CONTATO", "QUALIFICADO", "DESQUALIFICADO", "CONVERTIDO"]);
+
   const where = {
     tenantId: session!.user.tenantId,
-    ...(status && { status: status as never }),
+    ...(status && VALID_STATUSES.has(status) && { status: status as never }),
     ...(q && {
       OR: [
         { name: { contains: q, mode: "insensitive" as const } },

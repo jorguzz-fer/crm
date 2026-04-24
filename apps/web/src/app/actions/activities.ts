@@ -42,6 +42,11 @@ export async function createActivityAction(
     if (!opp) return { error: "Oportunidade inválida" };
   }
 
+  if (data.companyId) {
+    const co = await prisma.company.findFirst({ where: { id: data.companyId, tenantId }, select: { id: true } });
+    if (!co) return { error: "Empresa inválida" };
+  }
+
   const activity = await prisma.activity.create({
     data: {
       tenantId,

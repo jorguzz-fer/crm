@@ -45,7 +45,7 @@ export default async function TarefasPage({ searchParams }: Props) {
       completedAt: null,
       dueAt: { gte: startOfToday, lt: new Date(startOfToday.getTime() + 86400000) },
     }),
-    ...(filterPriority && { priority: filterPriority as never }),
+    ...(filterPriority && ["URGENTE", "ALTA", "MEDIA", "BAIXA"].includes(filterPriority) && { priority: filterPriority as never }),
     ...(filterAssignedTo && { assignedTo: filterAssignedTo }),
   };
 

@@ -40,6 +40,14 @@ export async function createLeadAction(
     if (!user) return { error: "Usuário inválido" };
   }
 
+  if (data.companyId) {
+    const co = await prisma.company.findFirst({
+      where: { id: data.companyId, tenantId: session!.user.tenantId },
+      select: { id: true },
+    });
+    if (!co) return { error: "Empresa inválida" };
+  }
+
   const lead = await prisma.lead.create({
     data: {
       tenantId: session!.user.tenantId,
@@ -186,6 +194,14 @@ export async function createNoteAction(
       content,
       leadId,
     },
+  });
+
+  await logAudit({
+    tenantId: session!.user.tenantId,
+    userId: session!.user.id,
+    action: "note.create",
+    entity: "Note",
+    meta: { leadId },
   });
 
   revalidatePath(`/leads/${leadId}`);

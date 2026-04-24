@@ -53,6 +53,21 @@ export async function createOpportunityAction(
     if (!lead) return { error: "Lead inválido" };
   }
 
+  if (data.companyId) {
+    const co = await prisma.company.findFirst({ where: { id: data.companyId, tenantId }, select: { id: true } });
+    if (!co) return { error: "Empresa inválida" };
+  }
+
+  if (data.contactId) {
+    const ct = await prisma.contact.findFirst({ where: { id: data.contactId, tenantId }, select: { id: true } });
+    if (!ct) return { error: "Contato inválido" };
+  }
+
+  if (data.assignedTo) {
+    const user = await prisma.user.findFirst({ where: { id: data.assignedTo, tenantId }, select: { id: true } });
+    if (!user) return { error: "Responsável inválido" };
+  }
+
   const opp = await prisma.opportunity.create({
     data: {
       tenantId,

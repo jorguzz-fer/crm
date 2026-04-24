@@ -1,6 +1,6 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@crm/db";
 import { NextResponse } from "next/server";
+import { requireRole, ROLES_MANAGE } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 
 function csvEsc(v: string | null | undefined): string {
@@ -24,9 +24,11 @@ const SOURCE_LABEL: Record<string, string> = {
   COLD_OUTREACH: "Prospecção", OUTRO: "Outro",
 };
 
+const VALID_LEAD_STATUSES = new Set(["NOVO", "EM_CONTATO", "QUALIFICADO", "DESQUALIFICADO", "CONVERTIDO"]);
+
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, error } = await requireRole(ROLES_MANAGE);
+  if (error) return error;
 
   const tenantId = session.user.tenantId;
   const url = new URL(req.url);
@@ -37,7 +39,7 @@ export async function GET(req: Request) {
 
   const where = {
     tenantId,
-    ...(status && { status: status as never }),
+    ...(status && VALID_LEAD_STATUSES.has(status) && { status: status as never }),
     ...(q && {
       OR: [
         { name:    { contains: q, mode: "insensitive" as const } },

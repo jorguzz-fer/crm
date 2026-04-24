@@ -32,18 +32,19 @@ export default async function PipelinePage() {
     },
   });
 
-  const users = await prisma.user.findMany({
-    where: { tenantId, active: true },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-
-  const leads = await prisma.lead.findMany({
-    where: { tenantId, status: { in: ["NOVO", "EM_CONTATO", "QUALIFICADO"] } },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-    take: 100,
-  });
+  const [users, leads] = await Promise.all([
+    prisma.user.findMany({
+      where: { tenantId, active: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.lead.findMany({
+      where: { tenantId, status: { in: ["NOVO", "EM_CONTATO", "QUALIFICADO"] } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+      take: 100,
+    }),
+  ]);
 
   if (!pipeline) {
     return <CreatePipelineForm />;

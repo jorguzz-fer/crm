@@ -34,7 +34,7 @@ export default async function AtividadesPage({ searchParams }: Props) {
 
   const where = {
     tenantId,
-    ...(filterType && { type: filterType as never }),
+    ...(filterType && ["LIGACAO", "EMAIL", "REUNIAO", "WHATSAPP", "VISITA", "OUTRO"].includes(filterType) && { type: filterType as never }),
     ...(filterUserId && { userId: filterUserId }),
   };
 

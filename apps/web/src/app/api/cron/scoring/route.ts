@@ -14,8 +14,8 @@ export const runtime = "nodejs";
 export const maxDuration = 300; // 5 min — suficiente para 10k leads
 
 export async function GET(req: Request) {
-  const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  const secret = req.headers.get("x-cron-secret");
+  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -67,8 +67,9 @@ export async function GET(req: Request) {
               hasOpenOpportunity: lead.opportunities.length > 0,
             });
 
-            await prisma.lead.update({
-              where: { id: lead.id },
+            // updateMany permite filtrar por (id, tenantId) sem unique composto
+            await prisma.lead.updateMany({
+              where: { id: lead.id, tenantId: lead.tenantId },
               data: {
                 score: result.score,
                 scoreLabel: result.label,

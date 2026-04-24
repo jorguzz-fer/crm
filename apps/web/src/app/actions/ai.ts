@@ -76,7 +76,8 @@ export async function summarizeLeadAction(
     ]);
 
     return { result: res.result };
-  } catch {
+  } catch (err) {
+    console.error("[ai] summarize lead failed", err);
     return { error: "Falha ao gerar resumo. Verifique a chave da API e tente novamente." };
   }
 }
@@ -168,7 +169,8 @@ export async function summarizeOpportunityAction(
     ]);
 
     return { result: res.result };
-  } catch {
+  } catch (err) {
+    console.error("[ai] summarize opportunity failed", err);
     return { error: "Falha ao gerar resumo. Verifique a chave da API e tente novamente." };
   }
 }

@@ -1,6 +1,6 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@crm/db";
 import { NextResponse } from "next/server";
+import { requireRole, ROLES_MANAGE } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 
 function csvEsc(v: string | null | undefined): string {
@@ -21,9 +21,11 @@ const STATUS_LABEL: Record<string, string> = {
   ABERTA: "Aberta", GANHA: "Ganha", PERDIDA: "Perdida",
 };
 
+const VALID_OPP_STATUSES = new Set(["ABERTA", "GANHA", "PERDIDA"]);
+
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { session, error } = await requireRole(ROLES_MANAGE);
+  if (error) return error;
 
   const tenantId = session.user.tenantId;
   const url = new URL(req.url);
@@ -35,7 +37,7 @@ export async function GET(req: Request) {
 
   const where = {
     tenantId,
-    ...(status  && { status:  status  as never }),
+    ...(status && VALID_OPP_STATUSES.has(status) && { status: status as never }),
     ...(stageId && { stageId }),
     ...(from && to && {
       createdAt: {
