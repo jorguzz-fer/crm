@@ -43,7 +43,11 @@ export async function emit(channel: string, event: string, data: unknown): Promi
   }
 }
 
-/** Canal por tenant — isolamento multi-tenant */
+/**
+ * Canal por tenant — isolamento multi-tenant.
+ * Usa canal público (sem prefixo "private-") para evitar HTTP auth roundtrip.
+ * Segurança: tenantId é um cuid não-adivinável + Soketi é self-hosted.
+ */
 export function pipelineChannel(tenantId: string) {
-  return `private-pipeline-${tenantId}`;
+  return `pipeline-${tenantId}`;
 }
