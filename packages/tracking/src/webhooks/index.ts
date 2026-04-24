@@ -27,7 +27,7 @@ export type VerifyResult =
   | { valid: true; reason?: never }
   | { valid: false; reason: "missing-signature" | "invalid-signature" | "malformed" };
 
-// TODO (Fase 4): export * from "./hotmart";
-// TODO (Fase 4): export * from "./pagarme";
+export * from "./hotmart";
+export * from "./pagarme";
 // TODO (Fase 4): export * from "./paypal";
 // TODO (Fase 4): export * from "./stripe";

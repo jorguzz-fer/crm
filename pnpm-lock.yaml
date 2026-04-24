@@ -239,6 +239,15 @@ importers:
 
   packages/jobs:
     dependencies:
+      '@crm/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@crm/db':
+        specifier: workspace:*
+        version: link:../db
+      '@crm/whatsapp':
+        specifier: workspace:*
+        version: link:../whatsapp
       inngest:
         specifier: ^3.28.0
         version: 3.54.0(@opentelemetry/core@2.7.0(@opentelemetry/api@1.9.1))(next@15.3.1(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(typescript@5.9.3)(zod@3.25.76)
@@ -255,6 +264,9 @@ importers:
 
   packages/tracking:
     dependencies:
+      '@crm/db':
+        specifier: workspace:*
+        version: link:../db
       zod:
         specifier: ^3.24.1
         version: 3.25.76

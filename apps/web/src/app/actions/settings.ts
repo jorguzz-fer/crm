@@ -138,6 +138,50 @@ export async function updateUserRoleAction(
   return { success: `Role de ${target.name} atualizado.` };
 }
 
+const updateTrackingConfigSchema = z.object({
+  metaPixelId: z.string().max(50).optional(),
+  metaAccessToken: z.string().max(500).optional(),
+  hotmartHottok: z.string().max(200).optional(),
+  pagarmeWebhookSecret: z.string().max(200).optional(),
+});
+
+export async function updateTrackingConfigAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const { session, error } = await requireRole(ROLES_ADMIN);
+  if (error) return { error: "Apenas administradores podem editar integrações" };
+
+  const raw = {
+    metaPixelId: formData.get("metaPixelId") || undefined,
+    metaAccessToken: formData.get("metaAccessToken") || undefined,
+    hotmartHottok: formData.get("hotmartHottok") || undefined,
+    pagarmeWebhookSecret: formData.get("pagarmeWebhookSecret") || undefined,
+  };
+
+  const parsed = updateTrackingConfigSchema.safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.errors[0].message };
+
+  const tenantId = session!.user.tenantId;
+
+  await prisma.tenantTrackingConfig.upsert({
+    where: { tenantId },
+    create: { tenantId, ...parsed.data },
+    update: parsed.data,
+  });
+
+  await logAudit({
+    tenantId,
+    userId: session!.user.id,
+    action: "tracking_config.update",
+    entity: "TenantTrackingConfig",
+    meta: { fields: Object.keys(parsed.data).filter((k) => parsed.data[k as keyof typeof parsed.data]) },
+  });
+
+  revalidatePath("/configuracoes/tracking");
+  return { success: "Integrações de tracking salvas." };
+}
+
 export async function toggleUserActiveAction(
   _prev: ActionState,
   formData: FormData

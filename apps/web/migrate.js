@@ -62,6 +62,18 @@ const MIGRATIONS = [
     name: "0010_whatsapp_provider",
     check: `SELECT COUNT(*)::int AS cnt FROM information_schema.columns WHERE table_schema='public' AND table_name='WhatsAppInstance' AND column_name='provider'`,
   },
+  {
+    name: "0011_tracking",
+    check: `SELECT COUNT(*)::int AS cnt FROM information_schema.tables WHERE table_schema='public' AND table_name='Attribution'`,
+  },
+  {
+    name: "0012_tracking_config",
+    check: `SELECT COUNT(*)::int AS cnt FROM information_schema.tables WHERE table_schema='public' AND table_name='TenantTrackingConfig'`,
+  },
+  {
+    name: "0013_campaign_spend",
+    check: `SELECT COUNT(*)::int AS cnt FROM information_schema.tables WHERE table_schema='public' AND table_name='CampaignSpend'`,
+  },
 ];
 
 /**

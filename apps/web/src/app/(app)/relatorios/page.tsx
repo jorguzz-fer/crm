@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@crm/db";
 import type { Metadata } from "next";
-import { Download, TrendingUp, Users, Kanban, BarChart2 } from "lucide-react";
+import { Download, TrendingUp, Users, Kanban, BarChart2, Target } from "lucide-react";
+import { getCplByCampaign, getRoasByCampaign, getConversionFunnel } from "@crm/tracking/analytics";
 
 export const metadata: Metadata = { title: "Relatórios" };
 
@@ -76,6 +77,9 @@ export default async function RelatoriosPage({ searchParams }: Props) {
     // Atividades
     activitiesByType,
     activitiesTotal,
+    funnel,
+    cplRows,
+    roasRows,
   ] = await Promise.all([
     prisma.lead.groupBy({
       by: ["status"],
@@ -118,6 +122,9 @@ export default async function RelatoriosPage({ searchParams }: Props) {
       orderBy: { _count: { type: "desc" } },
     }),
     prisma.activity.count({ where: { tenantId, occurredAt: { gte: fromDate, lte: toDate } } }),
+    getConversionFunnel(tenantId, fromDate, toDate),
+    getCplByCampaign(tenantId, fromDate, toDate),
+    getRoasByCampaign(tenantId, fromDate, toDate),
   ]);
 
   const taxaConversao = leadsTotal > 0 ? ((leadsConvertidos / leadsTotal) * 100).toFixed(1) : "0";
@@ -334,6 +341,103 @@ export default async function RelatoriosPage({ searchParams }: Props) {
             </tbody>
           </table>
         </div>
+      </section>
+
+      {/* ── Seção Tracking & Conversões ── */}
+      <section className="space-y-4">
+        <h2 className="text-base font-semibold flex items-center gap-2">
+          <Target size={16} className="text-primary" />
+          Tracking & Conversões
+        </h2>
+
+        {/* Funil */}
+        <div className="grid gap-4 sm:grid-cols-4">
+          {[
+            { label: "Leads",        value: funnel.totalLeads,     sub: "no período" },
+            { label: "Qualificados", value: funnel.qualifiedLeads, sub: "score ≥ 60" },
+            { label: "Conversões",   value: funnel.conversions,    sub: `${funnel.conversionRate.toFixed(1)}% dos leads` },
+            { label: "Receita CAPI", value: fmtBRL.format(funnel.totalRevenue), sub: "confirmada" },
+          ].map((c) => (
+            <div key={c.label} className="rounded-lg border border-border bg-card p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">{c.label}</p>
+              <p className="mt-1 text-2xl font-bold">{c.value}</p>
+              <p className="text-xs text-muted-foreground">{c.sub}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* CPL por campanha */}
+        {cplRows.length > 0 && (
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
+            <div className="border-b border-border bg-muted/30 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              CPL por campanha
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Campanha</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">Plataforma</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">Gasto</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">Leads</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">CPL</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {cplRows.map((r) => (
+                  <tr key={r.campaignId} className="hover:bg-muted/20">
+                    <td className="px-4 py-2.5 font-medium">{r.campaignName ?? r.campaignId}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{r.platform}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{fmtBRL.format(r.totalSpend)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{r.leads}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-semibold">
+                      {r.cpl != null ? fmtBRL.format(r.cpl) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* ROAS por campanha */}
+        {roasRows.length > 0 && (
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
+            <div className="border-b border-border bg-muted/30 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              ROAS por campanha
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Campanha</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">Gasto</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">Receita</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">ROAS</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {roasRows.map((r) => (
+                  <tr key={r.campaignId} className="hover:bg-muted/20">
+                    <td className="px-4 py-2.5 font-medium">{r.campaignName ?? r.campaignId}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{fmtBRL.format(r.totalSpend)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{fmtBRL.format(r.totalRevenue)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-semibold">
+                      {r.roas != null ? `${r.roas.toFixed(2)}x` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {cplRows.length === 0 && roasRows.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            Nenhum gasto de campanha registrado no período.
+            Configure os gastos via <strong>CampaignSpend</strong> para ver CPL e ROAS aqui.
+          </div>
+        )}
       </section>
 
       {/* ── Seção Atividades ── */}

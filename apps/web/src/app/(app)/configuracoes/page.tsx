@@ -95,6 +95,18 @@ export default async function ConfiguracoesPage() {
             </div>
             <span className="text-muted-foreground group-hover:text-foreground transition-colors text-lg">→</span>
           </a>
+          <a
+            href="/configuracoes/tracking"
+            className="flex items-center justify-between rounded-lg border border-border bg-card p-4 hover:bg-muted/30 transition-colors group"
+          >
+            <div>
+              <p className="font-medium text-sm">Tracking & Conversões</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Meta CAPI, Hotmart e Pagar.me — rastreie conversões server-side
+              </p>
+            </div>
+            <span className="text-muted-foreground group-hover:text-foreground transition-colors text-lg">→</span>
+          </a>
         </section>
       )}
 

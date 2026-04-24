@@ -1,33 +1,72 @@
-/**
- * POST /api/webhooks/meta-capi
- *
- * Intake interno para conversões server-side.
- *
- * Este endpoint NÃO é chamado pelo Meta — é chamado pela nossa própria app
- * (ou por webhooks de gateway) para disparar eventos ao Meta CAPI.
- *
- * Segurança obrigatória (Fase 4):
- *   1) requireAuth() — só código interno autenticado envia conversões
- *   2) Validar payload com conversionEventPayloadSchema (@crm/tracking)
- *   3) Hash SHA-256 em email/phone ANTES de enviar ao Meta
- *   4) Idempotência via externalEventId
- *   5) Rate limit para evitar disparos acidentais em massa
- *   6) Audit log de toda conversão reportada
- *
- * Também recebe callbacks de dedup do Meta CAPI (GET com challenge).
- */
-
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { sendMetaCapiEvent } from "@crm/tracking/server";
+import { requireAuth } from "@/lib/authz";
+import { logAudit, getClientIp } from "@/lib/audit";
+import { z } from "zod";
 
-export async function POST(): Promise<NextResponse> {
-  // TODO Fase 4: validar + enviar via sendMetaCapiEvent
-  return NextResponse.json(
-    { error: "Not implemented (Fase 4)" },
-    { status: 501 },
-  );
+const payloadSchema = z.object({
+  tenantId: z.string().min(1),
+  leadId: z.string().min(1),
+  eventType: z.enum(["lead", "purchase", "contact"]),
+  externalEventId: z.string().min(1),
+  userData: z.object({
+    email: z.string().email(),
+    phone: z.string().optional(),
+    firstName: z.string().optional(),
+  }),
+  attribution: z.object({
+    fbclid: z.string().nullable().optional(),
+    fbp: z.string().nullable().optional(),
+    fbc: z.string().nullable().optional(),
+    ctwaClid: z.string().nullable().optional(),
+  }),
+  value: z.number().positive().optional(),
+  currency: z.string().optional(),
+});
+
+export async function POST(req: Request): Promise<NextResponse> {
+  const { session, error } = await requireAuth();
+  if (error) return error;
+
+  const body = await req.json();
+  const parsed = payloadSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const { tenantId } = parsed.data;
+  if (tenantId !== session.user.tenantId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const config = await prisma.tenantTrackingConfig.findUnique({
+    where: { tenantId },
+    select: { metaPixelId: true, metaAccessToken: true },
+  });
+
+  if (!config?.metaPixelId || !config?.metaAccessToken) {
+    return NextResponse.json({ error: "Meta CAPI not configured for tenant" }, { status: 400 });
+  }
+
+  const result = await sendMetaCapiEvent(parsed.data, {
+    pixelId: config.metaPixelId,
+    accessToken: config.metaAccessToken,
+  });
+
+  await logAudit({
+    tenantId,
+    userId: session.user.id,
+    action: "meta_capi.send",
+    entity: "ConversionEvent",
+    meta: { eventType: parsed.data.eventType, externalEventId: parsed.data.externalEventId, result },
+    ip: getClientIp(req),
+  });
+
+  return NextResponse.json(result, { status: result.status === "success" ? 200 : 502 });
 }
 
-// Verificação de webhook Meta (GET com challenge)
+// Meta webhook verification (GET with hub.challenge)
 export async function GET(req: Request): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const mode = searchParams.get("hub.mode");

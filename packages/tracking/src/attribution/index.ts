@@ -5,7 +5,9 @@
  * Implementação virá na Fase 4.
  */
 
-// TODO (Fase 4): export { stitchPaymentToLead } from "./stitch";
-// TODO (Fase 4): export { buildAttributionWindow } from "./windows"; // first-touch / last-touch / linear
+export { stitchPaymentToLead } from "./stitch";
+export type { StitchResult } from "./stitch";
+// TODO (Fase 4): export { buildAttributionWindow } from "./windows";
+
 
 export {}; // placeholder

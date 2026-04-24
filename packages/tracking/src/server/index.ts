@@ -5,7 +5,8 @@
  * testes possam começar a ser escritos em RED.
  */
 
-// TODO (Fase 4): export { sendMetaCapiEvent } from "./meta-capi";
+export { sendMetaCapiEvent } from "./meta-capi";
+export type { MetaCapiPayload, MetaTenantConfig, MetaCapiResult } from "./meta-capi";
 // TODO (Fase 4): export { sendGoogleOfflineConversion } from "./google-offline";
 // TODO (Fase 4): export { sendGoogleEnhancedConversion } from "./google-enhanced";
 
