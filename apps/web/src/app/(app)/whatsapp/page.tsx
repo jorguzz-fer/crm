@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
-import { WaInbox } from "@/components/whatsapp/WaInbox";
+import { prisma } from "@crm/db";
+import { WaInbox, type Conversation } from "@/components/whatsapp/WaInbox";
 import Link from "next/link";
 import { Settings } from "lucide-react";
 
@@ -69,14 +69,24 @@ export default async function WhatsAppPage({ searchParams }: Props) {
       })
     : [];
 
-  // Monta conversas serializadas
-  const convsSerialized = conversationsList.map((c) => ({
-    ...c,
+  // Monta conversas serializadas — constrói objeto explicitamente para o TS
+  // conseguir inferir o tipo (spread + override não casa bem com Prisma Date)
+  const convsSerialized: Conversation[] = conversationsList.map((c) => ({
+    id:            c.id,
+    remotePhone:   c.remotePhone,
+    remoteName:    c.remoteName,
+    unreadCount:   c.unreadCount,
     lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
-    messages:
-      c.id === selectedId
-        ? selectedMessages.map((m) => ({ ...m, timestamp: m.timestamp.toISOString() }))
-        : c.messages.map((m) => ({ ...m, timestamp: m.timestamp.toISOString() })),
+    lead:          c.lead,
+    contact:       c.contact,
+    messages: (c.id === selectedId ? selectedMessages : c.messages).map((m) => ({
+      id:        m.id,
+      fromMe:    m.fromMe,
+      body:      m.body,
+      mediaType: m.mediaType,
+      timestamp: m.timestamp.toISOString(),
+      status:    m.status,
+    })),
   }));
 
   return (
@@ -103,8 +113,7 @@ export default async function WhatsAppPage({ searchParams }: Props) {
       {/* Inbox */}
       <div className="flex-1 overflow-hidden">
         <WaInbox
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          conversations={convsSerialized as any}
+          conversations={convsSerialized}
           selectedId={selectedId ?? null}
           instanceStatus={instance?.status ?? "DISCONNECTED"}
         />

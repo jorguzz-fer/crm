@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@crm/db";
-import type { UserRole } from "@crm/db";
+import type { Role } from "@crm/db";
 import { requireRole, ROLES_ADMIN } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
@@ -83,11 +83,11 @@ export async function inviteUserAction(
 
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await prisma.user.create({
-    data: { tenantId, name, email: emailLower, passwordHash, role: role as UserRole, active: true },
+    data: { tenantId, name, email: emailLower, passwordHash, role: role as Role, active: true },
   });
 
   await prisma.membership.create({
-    data: { tenantId, userId: user.id, role: role as UserRole },
+    data: { tenantId, userId: user.id, role: role as Role },
   });
 
   await logAudit({
@@ -123,7 +123,7 @@ export async function updateUserRoleAction(
   const target = await prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, name: true } });
   if (!target) return { error: "Usuário não encontrado" };
 
-  await prisma.user.update({ where: { id: userId }, data: { role: role as UserRole } });
+  await prisma.user.update({ where: { id: userId }, data: { role: role as Role } });
 
   await logAudit({
     tenantId,

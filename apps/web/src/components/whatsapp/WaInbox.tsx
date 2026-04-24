@@ -6,7 +6,7 @@ import { sendWhatsAppMessageAction, markConversationReadAction } from "@/app/act
 import { Send, MessageCircle, Search, CheckCheck, Check, Clock, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Message {
+export interface Message {
   id: string;
   fromMe: boolean;
   body: string | null;
@@ -15,7 +15,7 @@ interface Message {
   status: string;
 }
 
-interface Conversation {
+export interface Conversation {
   id: string;
   remotePhone: string;
   remoteName: string | null;
