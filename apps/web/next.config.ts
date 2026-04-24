@@ -35,7 +35,8 @@ const securityHeaders = [
       "img-src 'self' data: blob:",
       "media-src 'self' blob:",
       // OpenRouter API + wss: reservado para Soketi na V2
-      "connect-src 'self' https://openrouter.ai wss: ws:",
+      "connect-src 'self' https://openrouter.ai wss: ws: https://*.ingest.sentry.io https://*.ingest.us.sentry.io",
+      "worker-src 'self' blob:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
