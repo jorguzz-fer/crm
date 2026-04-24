@@ -18,8 +18,11 @@ const MIGRATIONS = [
     check: `SELECT 1 / (CASE WHEN is_nullable = 'YES' THEN 1 ELSE 0 END) FROM information_schema.columns WHERE table_name = 'AuditLog' AND column_name = 'userId'`,
   },
   { name: "0008_visits", check: `SELECT 1 FROM "Visit" LIMIT 1` },
-  { name: "0009_lead_scoring", check: `SELECT 1 FROM information_schema.columns WHERE table_name='Lead' AND column_name='score'` },
-  { name: "0010_whatsapp_provider", check: `SELECT 1 FROM information_schema.columns WHERE table_name='WhatsAppInstance' AND column_name='provider'` },
+  // Checks de coluna: usamos SELECT direto na tabela com a coluna nova.
+  // Se a coluna não existir, Postgres lança "column does not exist" → exists=false → migration roda.
+  // NÃO use information_schema: a query nunca lança erro, mesmo com coluna ausente.
+  { name: "0009_lead_scoring", check: `SELECT "score" FROM "Lead" LIMIT 0` },
+  { name: "0010_whatsapp_provider", check: `SELECT "provider" FROM "WhatsAppInstance" LIMIT 0` },
 ];
 
 async function applyMigration(prisma, name) {
