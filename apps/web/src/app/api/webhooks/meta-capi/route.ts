@@ -19,7 +19,7 @@
 
 import { NextResponse } from "next/server";
 
-export async function POST(_req: Request): Promise<NextResponse> {
+export async function POST(): Promise<NextResponse> {
   // TODO Fase 4: validar + enviar via sendMetaCapiEvent
   return NextResponse.json(
     { error: "Not implemented (Fase 4)" },

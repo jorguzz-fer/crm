@@ -19,6 +19,7 @@ const MIGRATIONS = [
   },
   { name: "0008_visits", check: `SELECT 1 FROM "Visit" LIMIT 1` },
   { name: "0009_lead_scoring", check: `SELECT 1 FROM information_schema.columns WHERE table_name='Lead' AND column_name='score'` },
+  { name: "0010_whatsapp_provider", check: `SELECT 1 FROM information_schema.columns WHERE table_name='WhatsAppInstance' AND column_name='provider'` },
 ];
 
 async function applyMigration(prisma, name) {

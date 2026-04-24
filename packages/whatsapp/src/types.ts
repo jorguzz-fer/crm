@@ -1,23 +1,17 @@
 /**
  * Contratos canônicos do package @crm/whatsapp.
  *
- * A ideia: desacoplar o resto da app do provedor (Evolution API vs
- * Meta Cloud API). Todo código consumidor fala com o `WhatsAppAdapter`
- * abaixo — cada implementação concreta mora em `src/adapters/*`.
- *
- * A decisão final entre Evolution-only, Meta-only ou multi-provider
- * está em `.coordination/OPEN_QUESTIONS.md`. Até lá, os dois adapters
- * existem como stubs RED.
+ * WhatsAppAdapter desacopla o resto da app do provedor concreto.
+ * Cada implementação mora em src/adapters/*.
  */
 
 import { z } from "zod";
 
-// ── Normalized inbound event (qualquer provedor → este formato) ──────────────
+// ── Normalized inbound event (após parse, sem tenantId) ──────────────────────
 
-export const inboundMessageSchema = z.object({
-  tenantId: z.string().min(1),
-  providerInstanceId: z.string().min(1), // conexão WABA / instância Evolution
-  externalMessageId: z.string().min(1),  // pro idempotency dedup
+export const rawInboundMessageSchema = z.object({
+  providerInstanceId: z.string().min(1),
+  externalMessageId: z.string().min(1),
   from: z.object({
     phoneE164: z.string().regex(/^\+\d{10,15}$/, "E.164 esperado"),
     name: z.string().nullable().optional(),
@@ -45,9 +39,17 @@ export const inboundMessageSchema = z.object({
     z.object({ type: z.literal("button"), payload: z.string().min(1) }),
     z.object({ type: z.literal("interactive"), payload: z.string().min(1) }),
   ]),
-  // Click-to-WhatsApp Ads — crítico pro tracking server-side
+  // Click-to-WhatsApp Ads — crítico pro tracking server-side.
+  // Disponível apenas via Meta Cloud API; Evolution/Z-API retorna null.
   ctwaClid: z.string().nullable().optional(),
   receivedAt: z.date(),
+});
+
+export type RawInboundMessage = z.infer<typeof rawInboundMessageSchema>;
+
+// InboundMessage = RawInboundMessage + tenantId (adicionado pelo handler)
+export const inboundMessageSchema = rawInboundMessageSchema.extend({
+  tenantId: z.string().min(1),
 });
 
 export type InboundMessage = z.infer<typeof inboundMessageSchema>;
@@ -67,7 +69,7 @@ export const outboundMessageSchema = z.object({
       variables: z.array(z.string()).default([]),
     }),
   ]),
-  externalEventId: z.string().min(1), // idempotency (retries seguros)
+  externalEventId: z.string().min(1),
 });
 
 export type OutboundMessage = z.infer<typeof outboundMessageSchema>;
@@ -81,7 +83,7 @@ export interface SendResult {
 // ── Adapter interface ────────────────────────────────────────────────────────
 
 export interface WhatsAppAdapter {
-  readonly provider: "evolution" | "meta-cloud";
+  readonly provider: "evolution" | "zapi" | "meta-cloud";
 
   /**
    * Envia mensagem. Deve ser idempotente via `externalEventId`.
@@ -89,8 +91,8 @@ export interface WhatsAppAdapter {
   sendMessage(msg: OutboundMessage): Promise<SendResult>;
 
   /**
-   * Verifica assinatura do webhook recebido. Deve ser chamado ANTES de
-   * qualquer parsing de payload. Retorna o raw body + headers verificados.
+   * Verifica assinatura/autenticidade do webhook recebido.
+   * Deve ser chamado ANTES de qualquer parsing.
    */
   verifyWebhookSignature(input: {
     rawBody: string;
@@ -99,8 +101,9 @@ export interface WhatsAppAdapter {
   }): Promise<{ ok: true } | { ok: false; reason: string }>;
 
   /**
-   * Normaliza o payload do provider pro formato canônico `InboundMessage[]`.
-   * Um único webhook pode entregar múltiplas mensagens (batching).
+   * Normaliza o payload raw do provider → RawInboundMessage[].
+   * Não inclui tenantId (adicionado pelo handler após lookup no DB).
+   * Um webhook pode entregar múltiplas mensagens (batching).
    */
-  parseInbound(rawBody: string): Promise<InboundMessage[]>;
+  parseInbound(rawBody: string): Promise<RawInboundMessage[]>;
 }

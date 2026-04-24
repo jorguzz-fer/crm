@@ -1,0 +1,17 @@
+# Schema changes log (append-only)
+
+Registre aqui toda mudança proposta/aplicada ao `packages/db/prisma/schema.prisma`. Datar + sessão autora + descrição curta + status.
+
+Formato: `YYYY-MM-DD | <session> | <status> | <resumo>`
+
+Status: `proposed` → `reviewed` → `applied` → `rolled-back` (se necessário).
+
+---
+
+2026-04-23 | sdr-scaffold | proposed | FASE 0 scaffold: sem mudanças de schema nesta fase. Modelos novos (Attribution, ConversionEvent, Transaction, Campaign, Product, FollowupSequence) propostos nas fases 3–4 — documentados em IMPLEMENTATION_PLAN.md.
+
+[2026-04-23] Phase 1 — packages/whatsapp
+- Adicionado enum WaProvider { EVOLUTION, ZAPI, META_CLOUD }
+- WhatsAppInstance.provider: WaProvider @default(EVOLUTION)
+- WhatsAppInstance.wabaId/phoneNumberId/accessTokenEnc/webhookSecret (opcionais, Meta Cloud)
+Migration: não-breaking (novos campos opcionais com default)

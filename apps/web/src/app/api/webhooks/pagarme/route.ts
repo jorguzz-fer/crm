@@ -20,7 +20,7 @@
 
 import { NextResponse } from "next/server";
 
-export async function POST(_req: Request): Promise<NextResponse> {
+export async function POST(): Promise<NextResponse> {
   // TODO Fase 4: validar HMAC-SHA256 + stitcher
   return NextResponse.json(
     { error: "Not implemented (Fase 4)" },
