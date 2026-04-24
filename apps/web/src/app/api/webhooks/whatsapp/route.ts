@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createEvolutionAdapter, handleWebhook } from "@crm/whatsapp";
+import { inngest } from "@crm/jobs";
 
 /**
  * POST /api/webhooks/whatsapp
@@ -80,8 +81,11 @@ export async function POST(req: Request) {
     });
 
     let convId: string;
+    let convLeadId: string | null = null;
+
     if (existingConv) {
       convId = existingConv.id;
+      convLeadId = existingConv.leadId;
       await prisma.whatsAppConversation.update({
         where: { id: convId },
         data: {
@@ -103,6 +107,7 @@ export async function POST(req: Request) {
         }),
       ]);
 
+      convLeadId = lead?.id ?? null;
       const conv = await prisma.whatsAppConversation.create({
         data: {
           tenantId: instance.tenantId,
@@ -110,7 +115,7 @@ export async function POST(req: Request) {
           remoteJid: `${phone}@s.whatsapp.net`,
           remotePhone: phone,
           remoteName: msg.from.name ?? null,
-          leadId: lead?.id ?? null,
+          leadId: convLeadId,
           contactId: contact?.id ?? null,
           unreadCount: 1,
           lastMessageAt: msg.receivedAt,
@@ -144,7 +149,30 @@ export async function POST(req: Request) {
       // waMessageId duplicado — idempotência via DB constraint
     }
 
-    // TODO Fase 3: inngest.send("message/received", { tenantId: msg.tenantId, ...msg })
+    // Dispatch event for AI classification (classifyOnMessageFn)
+    await inngest.send({
+      name: "message/received",
+      data: {
+        tenantId: instance.tenantId,
+        conversationId: convId,
+        messageId: msg.externalMessageId,
+        leadId: convLeadId ?? undefined,
+        channel: "whatsapp" as const,
+        content: {
+          type: msg.message.type as
+            | "text"
+            | "image"
+            | "audio"
+            | "video"
+            | "document"
+            | "location"
+            | "interactive",
+          body: msg.message.type === "text" ? msg.message.text : undefined,
+        },
+        from: msg.from.phoneE164,
+        receivedAt: msg.receivedAt.toISOString(),
+      },
+    });
   }
 
   return NextResponse.json({ ok: true });
