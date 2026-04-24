@@ -47,6 +47,12 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  // Type check e lint são rodados localmente e na CI (pnpm tsc + next lint).
+  // No build do Docker (VPS com RAM limitada) o tsc OOM-killa o processo após
+  // o webpack já ter consumido ~1.5 GB. Desabilitar aqui é seguro — os tipos
+  // são validados antes do push.
+  typescript: { ignoreBuildErrors: true },
+  eslint:     { ignoreDuringBuilds: true },
   // Next.js 15 lê instrumentation.ts automaticamente (não precisa de flag experimental)
   // Workspace packages exportam TypeScript direto — Next.js precisa compilar
   transpilePackages: ["@crm/db", "@crm/validators", "@crm/ai", "@crm/ui"],
