@@ -21,7 +21,7 @@
 
 import { NextResponse } from "next/server";
 
-export async function POST(_req: Request): Promise<NextResponse> {
+export async function POST(): Promise<NextResponse> {
   // TODO Fase 1: createMetaCloudAdapter + handleWebhook + inngest.send
   return NextResponse.json(
     { error: "Not implemented (Fase 1)" },
