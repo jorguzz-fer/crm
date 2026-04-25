@@ -10,8 +10,9 @@ import { validatePassword } from "@/lib/password";
 import { logAudit } from "@/lib/audit";
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email:    z.string().email(),
   password: z.string().min(1),
+  totp:     z.string().optional(),
 });
 
 const signupSchema = z.object({
@@ -26,15 +27,19 @@ const signupSchema = z.object({
     .regex(/^[a-z0-9-]+$/, "Use apenas letras minúsculas, números e hifens"),
 });
 
-export type ActionResult = { error: string } | { success: true };
+export type ActionResult =
+  | { error: string }
+  | { success: true }
+  | { requireTotp: true };
 
 export async function loginAction(
   _prev: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult> {
   const raw = {
-    email: formData.get("email"),
+    email:    formData.get("email"),
     password: formData.get("password"),
+    totp:     formData.get("totp") ?? undefined,
   };
 
   const parsed = loginSchema.safeParse(raw);
@@ -42,17 +47,37 @@ export async function loginAction(
     return { error: "Dados inválidos" };
   }
 
+  const email    = parsed.data.email.toLowerCase();
+  const password = parsed.data.password;
+  const totp     = parsed.data.totp;
+
+  // Pré-check: se o usuário tem 2FA ativo e não enviou código, verificamos a senha
+  // e pedimos o TOTP antes de acionar o signIn (evita revelar se o email existe)
+  if (!totp) {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { passwordHash: true, active: true, twoFactorEnabled: true },
+    });
+
+    if (user?.active && user.passwordHash && user.twoFactorEnabled) {
+      const validPwd = await bcrypt.compare(password, user.passwordHash);
+      if (validPwd) return { requireTotp: true };
+      // Senha errada → cai no signIn abaixo que retornará erro genérico
+    }
+  }
+
   try {
     await signIn("credentials", {
-      email: parsed.data.email.toLowerCase(),
-      password: parsed.data.password,
+      email,
+      password,
+      totp: totp ?? "",
       redirectTo: "/dashboard",
     });
   } catch (err) {
     if (err instanceof AuthError) {
       switch (err.type) {
         case "CredentialsSignin":
-          return { error: "E-mail ou senha incorretos" };
+          return { error: totp ? "Código 2FA inválido ou expirado" : "E-mail ou senha incorretos" };
         default:
           return { error: "Erro ao fazer login. Tente novamente." };
       }

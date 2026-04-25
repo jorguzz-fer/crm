@@ -13,6 +13,8 @@ export const PUBLIC_PATHS = [
   // NUNCA remova esses paths daqui sem garantir que o handler valida o secret.
   "/api/cron",
   "/api/webhooks",
+  // Extensão Chrome usa Bearer token — sem cookie JWT
+  "/api/extension",
   "/privacidade",
   "/termos",
   "/forgot-password",

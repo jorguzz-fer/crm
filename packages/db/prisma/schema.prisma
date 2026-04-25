@@ -44,6 +44,8 @@ model Tenant {
   trackingConfig   TenantTrackingConfig?
   campaignSpends   CampaignSpend[]
   attachments      Attachment[]
+  transcriptions   Transcription[]
+  personalTokens   PersonalAccessToken[]
 
   @@index([slug])
 }
@@ -55,27 +57,32 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
-  passwordHash  String?
-  active        Boolean   @default(true)
-  role          Role      @default(ANALYST)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  passwordHash       String?
+  active             Boolean   @default(true)
+  role               Role      @default(ANALYST)
+  // 2FA TOTP
+  twoFactorEnabled   Boolean   @default(false)
+  twoFactorSecret    String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  tenant                Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   memberships           Membership[]
   accounts              Account[]
   sessions              Session[]
   auditLogs             AuditLog[]
-  leadsAssigned         Lead[]          @relation("LeadAssignee")
-  opportunitiesAssigned Opportunity[]   @relation("OpportunityAssignee")
-  activities            Activity[]      @relation("ActivityUser")
-  tasksAssigned         Task[]          @relation("TaskAssignee")
-  notes                 Note[]          @relation("NoteAuthor")
+  leadsAssigned         Lead[]                @relation("LeadAssignee")
+  opportunitiesAssigned Opportunity[]         @relation("OpportunityAssignee")
+  activities            Activity[]            @relation("ActivityUser")
+  tasksAssigned         Task[]                @relation("TaskAssignee")
+  notes                 Note[]                @relation("NoteAuthor")
   visits                Visit[]
   attachments           Attachment[]
-  consentCollected      ConsentRecord[] @relation("ConsentCollector")
-  dataRequestsMade      DataRequest[]   @relation("DataRequestRequester")
-  dataRequestsProcessed DataRequest[]   @relation("DataRequestProcessor")
+  consentCollected      ConsentRecord[]       @relation("ConsentCollector")
+  dataRequestsMade      DataRequest[]         @relation("DataRequestRequester")
+  dataRequestsProcessed DataRequest[]         @relation("DataRequestProcessor")
+  transcriptions        Transcription[]
+  personalTokens        PersonalAccessToken[]
 
   @@index([tenantId])
   @@index([email])
@@ -798,4 +805,56 @@ model Attachment {
   @@index([tenantId, visitId])
   @@index([tenantId, leadId])
   @@index([tenantId, opportunityId])
+}
+
+// ── 2FA — Personal Access Tokens (Chrome Extension, API) ─────────────────────
+
+model PersonalAccessToken {
+  id         String    @id @default(cuid())
+  tenantId   String
+  userId     String
+  name       String                    // "Chrome Extension", "CLI", etc.
+  tokenHash  String    @unique         // bcrypt hash do token
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+}
+
+// ── Transcrição Whisper ───────────────────────────────────────────────────────
+
+model Transcription {
+  id           String   @id @default(cuid())
+  tenantId     String
+  userId       String
+
+  audioKey     String   @unique         // caminho no R2
+  filename     String
+  durationSec  Float?
+  language     String   @default("pt")
+
+  text         String?  @db.Text
+  status       String   @default("PENDING") // PENDING | PROCESSING | DONE | ERROR
+  errorMessage String?
+
+  // Entidade vinculada
+  entityType   String?  // "note" | "activity" | "visit"
+  entityId     String?
+
+  // LGPD: consentimento explícito da outra parte antes de transcrever
+  consentGiven Boolean  @default(false)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, entityType, entityId])
 }

@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@crm/db";
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { TenantForm } from "./TenantForm";
 import { InviteUserForm } from "./InviteUserForm";
 import { UserTable } from "./UserTable";
@@ -29,6 +31,15 @@ export default async function ConfiguracoesPage() {
       <div>
         <h1 className="text-2xl font-bold">Configurações</h1>
         <p className="text-sm text-muted-foreground">Gerencie seu tenant e usuários</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            href="/configuracoes/seguranca"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-accent"
+          >
+            <ShieldCheck size={14} />
+            Segurança &amp; 2FA
+          </Link>
+        </div>
       </div>
 
       {/* Tenant */}

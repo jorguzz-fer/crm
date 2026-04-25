@@ -4,6 +4,7 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { authenticator } from "otplib";
 import { prisma } from "@crm/db";
 import { rateLimit } from "@/lib/rateLimit";
 import { authConfig } from "@/lib/auth.config";
@@ -19,8 +20,9 @@ export interface AppSession {
 }
 
 const loginSchema = z.object({
-  email: z.string().email().max(200),
+  email:    z.string().email().max(200),
   password: z.string().min(8).max(200),
+  totp:     z.string().optional(),
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -60,6 +62,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const valid = await bcrypt.compare(parsed.data.password, user.passwordHash);
         if (!valid) return null;
+
+        // 2FA TOTP — se habilitado, verifica o código antes de concluir o login
+        if (user.twoFactorEnabled && user.twoFactorSecret) {
+          const totp = parsed.data.totp ?? "";
+          const totpValid = authenticator.verify({ token: totp, secret: user.twoFactorSecret });
+          if (!totpValid) return null;
+        }
 
         return {
           id: user.id,
