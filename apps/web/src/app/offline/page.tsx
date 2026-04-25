@@ -1,3 +1,5 @@
+import { ReloadButton } from "./ReloadButton";
+
 export const metadata = { title: "Sem conexão" };
 
 export default function OfflinePage() {
@@ -29,12 +31,7 @@ export default function OfflinePage() {
       <p className="text-muted-foreground max-w-sm">
         Verifique sua conexão com a internet e tente novamente.
       </p>
-      <button
-        onClick={() => window.location.reload()}
-        className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-      >
-        Tentar novamente
-      </button>
+      <ReloadButton />
     </main>
   );
 }
