@@ -13,6 +13,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@crm/ai": "workspace:*",
+    "@crm/db": "workspace:*",
+    "@crm/whatsapp": "workspace:*",
     "inngest": "^3.28.0",
     "zod": "^3.24.1"
   },

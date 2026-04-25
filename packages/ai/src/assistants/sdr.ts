@@ -1,17 +1,9 @@
-/**
- * SDR assistant — geração de primeira mensagem + follow-ups.
- *
- * Fase 2: implementação via Vercel AI SDK + OpenRouter (Haiku 4.5 default,
- * Sonnet 4.6 para casos complexos). Prompt caching habilitado no system prompt.
- *
- * Este arquivo expõe apenas os contratos Zod + stubs que lançam NotImplemented
- * — os testes RED validam schemas e cobrem as especificações de comportamento
- * com `it.todo`.
- */
-
 import { z } from "zod";
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateObject } from "ai";
+import { MODELS } from "../models";
 
-// ── First contact ────────────────────────────────────────────────────────────
+// ── First contact ─────────────────────────────────────────────────────────────
 
 export const firstContactInputSchema = z.object({
   tenantId: z.string().min(1),
@@ -43,14 +35,7 @@ export const firstContactOutputSchema = z.object({
 
 export type FirstContactOutput = z.infer<typeof firstContactOutputSchema>;
 
-export async function generateFirstContact(
-  input: FirstContactInput,
-): Promise<FirstContactOutput> {
-  firstContactInputSchema.parse(input);
-  throw new Error("generateFirstContact: not implemented (Fase 2)");
-}
-
-// ── Follow-up ────────────────────────────────────────────────────────────────
+// ── Follow-up ─────────────────────────────────────────────────────────────────
 
 export const followUpInputSchema = z.object({
   tenantId: z.string().min(1),
@@ -80,7 +65,110 @@ export const followUpOutputSchema = z.object({
 
 export type FollowUpOutput = z.infer<typeof followUpOutputSchema>;
 
+// ── Internals ─────────────────────────────────────────────────────────────────
+
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+
+const FIRST_CONTACT_SYSTEM = `Você é um SDR consultivo especializado em pós-graduações médicas.
+Gere a primeira mensagem de contato para um lead via WhatsApp/canal digital.
+
+REGRAS OBRIGATÓRIAS:
+- Use o nome do lead na abertura
+- NÃO mencione preço na primeira mensagem
+- Inclua uma pergunta aberta de qualificação como CTA
+- Máximo 900 caracteres
+- Adapte o tom conforme indicado (formal/informal/consultivo)
+- Não use emojis em excesso; 1-2 no máximo se o tom for informal/consultivo
+
+CAMPOS DE SAÍDA JSON: message, suggestedFollowUpMinutes (whatsapp=120, instagram=180, email=1440, sms=240), intent.`;
+
+const FOLLOW_UP_SYSTEM = `Você é um SDR consultivo especializado em pós-graduações médicas.
+Gere uma mensagem de follow-up para um lead que não respondeu ou respondeu pouco.
+
+REGRAS:
+- Varie o ângulo: não repita o texto do contato anterior
+- attempt 1-2: breezy check-in, curioso, sem pressão
+- attempt 3: introduza objeção comum (preço/tempo) e ofereça solução
+- attempt 4: urgência leve (turma fechando, vagas limitadas)
+- attempt 5: encerramento respeitoso — sugira escalate=true e nextAttemptHours=null
+- Máximo 600 caracteres
+
+CAMPOS DE SAÍDA JSON: message, shouldEscalate, nextAttemptHours (null se shouldEscalate=true).`;
+
+function buildFirstContactPrompt(input: FirstContactInput): string {
+  const lines: string[] = [
+    `Lead: ${input.leadName}`,
+    `Canal: ${input.channel}`,
+    `Tom: ${input.tone}`,
+    `Produto: ${input.productContext.name}`,
+    `Destaques: ${input.productContext.highlights.join(", ")}`,
+  ];
+
+  if (input.attribution) {
+    const attr = input.attribution;
+    const parts: string[] = [];
+    if (attr.utmSource) parts.push(`source=${attr.utmSource}`);
+    if (attr.utmCampaign) parts.push(`campaign=${attr.utmCampaign}`);
+    if (attr.ctwaClid) parts.push(`ctwaClid=${attr.ctwaClid}`);
+    if (parts.length > 0) lines.push(`Atribuição: ${parts.join(", ")}`);
+  }
+
+  return lines.join("\n");
+}
+
+function buildFollowUpPrompt(input: FollowUpInput): string {
+  const lines: string[] = [
+    `Lead: ${input.leadName}`,
+    `Canal: ${input.channel}`,
+    `Tentativa: ${input.attempt} de 5`,
+    `Dias sem resposta: ${input.daysSinceLastReply}`,
+    "",
+    "Mensagens anteriores:",
+  ];
+
+  for (const msg of input.previousMessages) {
+    lines.push(`[${msg.role.toUpperCase()}] ${msg.content}`);
+  }
+
+  return lines.join("\n");
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+export async function generateFirstContact(
+  input: FirstContactInput,
+): Promise<FirstContactOutput> {
+  firstContactInputSchema.parse(input);
+
+  const openai = createOpenAI({
+    baseURL: OPENROUTER_BASE_URL,
+    apiKey: process.env.OPENROUTER_API_KEY ?? "",
+  });
+
+  const { object } = await generateObject({
+    model: openai(MODELS.sdr),
+    schema: firstContactOutputSchema,
+    system: FIRST_CONTACT_SYSTEM,
+    prompt: buildFirstContactPrompt(input),
+  });
+
+  return object;
+}
+
 export async function generateFollowUp(input: FollowUpInput): Promise<FollowUpOutput> {
   followUpInputSchema.parse(input);
-  throw new Error("generateFollowUp: not implemented (Fase 2)");
+
+  const openai = createOpenAI({
+    baseURL: OPENROUTER_BASE_URL,
+    apiKey: process.env.OPENROUTER_API_KEY ?? "",
+  });
+
+  const { object } = await generateObject({
+    model: openai(MODELS.sdr),
+    schema: followUpOutputSchema,
+    system: FOLLOW_UP_SYSTEM,
+    prompt: buildFollowUpPrompt(input),
+  });
+
+  return object;
 }

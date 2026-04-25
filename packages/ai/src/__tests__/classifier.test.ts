@@ -78,23 +78,7 @@ describe("classificationSchema", () => {
 });
 
 describe("classifyLead (Fase 2)", () => {
-  it("por ora lança NotImplemented — scaffold RED", async () => {
-    await expect(
-      classifyLead({
-        tenantId: "t1",
-        leadId: "l1",
-        messages: [{ role: "lead", content: "oi", at: new Date() }],
-      }),
-    ).rejects.toThrow(/not implemented/i);
-  });
-
-  // Contratos pendentes (Fase 2) — cada .todo vira teste real quando implementado.
-  it.todo("retorna hot quando lead pergunta preço E turma E canal de pagamento");
-  it.todo("retorna warm quando lead engaja mas ainda explora");
+  // Comportamentos cobertos em classifier.behavior.test.ts (com mocks do AI SDK).
   it.todo("retorna cold quando lead respondeu só emoji/sticker");
   it.todo("retorna unqualified quando lead é competidor (domínio conhecido)");
-  it.todo("confidence acima de 0.8 quando sinais fortes (intent+budget+timeline)");
-  it.todo("usa Haiku 4.5 por default (MODELS.scoring)");
-  it.todo("preserva ctwa_clid via metadata pra correlação posterior");
-  it.todo("tenant isolation: nunca vaza contexto de outro tenant no prompt");
 });

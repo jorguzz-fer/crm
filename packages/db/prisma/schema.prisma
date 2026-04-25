@@ -39,6 +39,10 @@ model Tenant {
   followUpAlerts   AiFollowUpAlert[]
   waInstance       WhatsAppInstance?
   waConversations  WhatsAppConversation[]
+  attributions     Attribution[]
+  conversionEvents ConversionEvent[]
+  trackingConfig   TenantTrackingConfig?
+  campaignSpends   CampaignSpend[]
   attachments      Attachment[]
 
   @@index([slug])
@@ -145,10 +149,12 @@ enum DataRequestStatus {
 }
 
 model Membership {
-  id       String @id @default(cuid())
-  tenantId String
-  userId   String
-  role     Role   @default(ANALYST)
+  id              String  @id @default(cuid())
+  tenantId        String
+  userId          String
+  role            Role    @default(ANALYST)
+  acceptingLeads  Boolean @default(true)
+  maxLeads        Int?    // null = ilimitado
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -250,6 +256,7 @@ model Lead {
   opportunities   Opportunity[]
   followUpAlerts  AiFollowUpAlert[]
   waConversations WhatsAppConversation[]
+  attribution     Attribution?
   attachments     Attachment[]
 
   @@index([tenantId, status])
@@ -659,6 +666,106 @@ model WhatsAppMessage {
 
   @@index([conversationId, timestamp])
   @@index([tenantId, timestamp])
+}
+
+// ─── Fase 4: tracking & attribution ──────────────────────────────────────────
+
+model Attribution {
+  id           String   @id @default(cuid())
+  tenantId     String
+  leadId       String   @unique
+
+  // Meta
+  fbclid       String?
+  fbp          String?
+  fbc          String?
+  ctwaClid     String?
+
+  // Google
+  gclid        String?
+  gbraid       String?
+  wbraid       String?
+
+  // UTMs
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  utmContent   String?
+  utmTerm      String?
+
+  // Contexto
+  landingPage  String?
+  referrer     String?
+  userAgent    String?
+  ip           String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead         Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([fbclid])
+  @@index([gclid])
+  @@index([ctwaClid])
+}
+
+model ConversionEvent {
+  id              String   @id @default(cuid())
+  tenantId        String
+  leadId          String?
+  platform        String   // "meta" | "google"
+  eventType       String   // "lead" | "purchase" | "qualified" | "initiate_checkout"
+  externalEventId String   @unique
+  status          String   @default("pending") // "pending" | "success" | "failed"
+  errorMessage    String?
+  value           Float?
+  currency        String   @default("BRL")
+  sentAt          DateTime?
+  createdAt       DateTime @default(now())
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, platform, createdAt])
+  @@index([tenantId, leadId])
+  @@index([externalEventId])
+}
+
+model TenantTrackingConfig {
+  id                    String   @id @default(cuid())
+  tenantId              String   @unique
+  metaPixelId           String?
+  metaAccessToken       String?
+  hotmartHottok         String?
+  pagarmeWebhookSecret  String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model CampaignSpend {
+  id           String   @id @default(cuid())
+  tenantId     String
+  platform     String   // "meta" | "google"
+  campaignId   String
+  campaignName String?
+  adSetId      String?
+  adSetName    String?
+  date         DateTime // dia da despesa (00:00 UTC)
+  spend        Float
+  impressions  Int      @default(0)
+  clicks       Int      @default(0)
+  currency     String   @default("BRL")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, platform, campaignId, date])
+  @@index([tenantId, platform, date])
+  @@index([tenantId, campaignId])
 }
 
 // ── Anexos (Cloudflare R2) ────────────────────────────────────────────────────

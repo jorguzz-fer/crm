@@ -1,21 +1,20 @@
-/**
- * @crm/jobs — Inngest functions + event contract
- *
- * Implementações virão na Fase 3 do plano (ver .coordination/IMPLEMENTATION_PLAN.md).
- * No scaffold, expomos apenas o client, os schemas de eventos e um registry
- * vazio de functions.
- */
+import { classifyOnMessageFn, handleClassifyOnMessage } from "./functions/classify-on-message";
+import { firstContactFn, handleFirstContact } from "./functions/first-contact";
+import { followupSequenceFn, handleFollowup } from "./functions/followup-sequence";
+import { autoAssignLeadFn, reAssignHotLeadFn, handleAutoAssign, handleReAssignHot } from "./functions/auto-assign";
 
 export { inngest } from "./client";
 export * from "./events";
 
-/**
- * Lista de functions Inngest a serem exportadas para o endpoint `/api/inngest`.
- *
- * TODO (Fase 3): adicionar:
- * - firstContactFn    → on `lead/created` → dispara IA SDR < 5s
- * - followupSequenceFn → on `followup/scheduled` → D+1/D+3/D+7 + loop
- * - classifyOnMessageFn → on `message/received` → re-classifica lead
- * - routeQualifiedFn → on `lead/qualified` → distribui pra vendedor
- */
-export const functions: Array<never> = [];
+export { classifyOnMessageFn, handleClassifyOnMessage };
+export { firstContactFn, handleFirstContact };
+export { followupSequenceFn, handleFollowup };
+export { autoAssignLeadFn, reAssignHotLeadFn, handleAutoAssign, handleReAssignHot };
+
+export const functions = [
+  classifyOnMessageFn,
+  firstContactFn,
+  followupSequenceFn,
+  autoAssignLeadFn,
+  reAssignHotLeadFn,
+];

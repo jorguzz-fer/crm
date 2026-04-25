@@ -1,29 +1,63 @@
-/**
- * POST /api/webhooks/pagarme
- *
- * Gateway de pagamento — recebe eventos do Pagar.me.
- *
- * Segurança obrigatória (Fase 4):
- *   1) Verificar HMAC-SHA256 em `x-hub-signature` com secret do tenant
- *   2) Rejeitar 401 sem assinatura ou assinatura inválida
- *   3) Rate limit por IP
- *   4) Idempotência via charge.id
- *   5) Audit log em toda conversão reportada
- *
- * Eventos relevantes:
- *   - charge.paid      → deal/won + payment/received
- *   - charge.refunded  → estorno
- *   - order.canceled   → cancelamento
- *
- * Rota pública — sem requireAuth (é o Pagar.me quem chama).
- */
-
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { parsePagarme, verifyPagarmeSignature } from "@crm/tracking/webhooks";
+import { stitchPaymentToLead } from "@crm/tracking/attribution";
+import { logAudit, getClientIp } from "@/lib/audit";
 
-export async function POST(): Promise<NextResponse> {
-  // TODO Fase 4: validar HMAC-SHA256 + stitcher
-  return NextResponse.json(
-    { error: "Not implemented (Fase 4)" },
-    { status: 501 },
-  );
+export async function POST(req: Request): Promise<NextResponse> {
+  const rawBody = await req.text();
+  const headers = req.headers;
+
+  const { searchParams } = new URL(req.url);
+  const tenantId = searchParams.get("tenant");
+  if (!tenantId) {
+    return NextResponse.json({ error: "Missing tenant" }, { status: 400 });
+  }
+
+  const config = await prisma.tenantTrackingConfig.findUnique({
+    where: { tenantId },
+    select: { pagarmeWebhookSecret: true },
+  });
+
+  if (!config?.pagarmeWebhookSecret) {
+    return NextResponse.json({ error: "Tenant not configured" }, { status: 400 });
+  }
+
+  const verify = verifyPagarmeSignature(headers, rawBody, config.pagarmeWebhookSecret);
+  if (!verify.valid) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ error: "Malformed JSON" }, { status: 400 });
+  }
+
+  const payment = parsePagarme(payload);
+  if (!payment) {
+    return NextResponse.json({ ok: true, skipped: true });
+  }
+
+  const result = await stitchPaymentToLead(tenantId, payment);
+
+  if (result.matched && result.leadId) {
+    await logAudit({
+      tenantId,
+      userId: "system",
+      action: "payment.received",
+      entity: "ConversionEvent",
+      meta: {
+        gateway: payment.gateway,
+        externalId: payment.externalId,
+        status: payment.status,
+        amount: payment.amount,
+        leadId: result.leadId,
+      },
+      ip: getClientIp(req),
+    });
+  }
+
+  return NextResponse.json({ ok: true, matched: result.matched });
 }

@@ -40,6 +40,14 @@ export const leadCreatedSchema = baseEventSchema.extend({
   channel: z.enum(["whatsapp", "email", "sms", "webchat", "instagram"]).optional(),
   attributionId: z.string().optional(),
   initialMessage: z.string().optional(),
+  // Optional: product context for AI SDR first contact
+  productContext: z
+    .object({
+      name: z.string().min(1),
+      priceBrl: z.number().positive(),
+      highlights: z.array(z.string().min(1)).min(1).max(5),
+    })
+    .optional(),
 });
 
 export const leadUpdatedSchema = baseEventSchema.extend({

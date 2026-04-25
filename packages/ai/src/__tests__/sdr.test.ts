@@ -89,26 +89,9 @@ describe("firstContactOutputSchema", () => {
 });
 
 describe("generateFirstContact (Fase 2)", () => {
-  it("por ora lança NotImplemented — scaffold RED", async () => {
-    await expect(
-      generateFirstContact({
-        tenantId: "t1",
-        leadId: "l1",
-        leadName: "João",
-        channel: "whatsapp",
-        productContext: { name: "X", priceBrl: 100, highlights: ["a"] },
-        tone: "consultivo",
-      }),
-    ).rejects.toThrow(/not implemented/i);
-  });
-
-  it.todo("gera mensagem personalizada com nome + highlight de produto");
-  it.todo("adapta tom conforme parâmetro (formal/informal/consultivo)");
+  // Comportamentos cobertos em sdr.behavior.test.ts (com mocks do AI SDK).
   it.todo("não inclui link de pagamento na primeira mensagem");
-  it.todo("mantém mensagem ≤ 900 chars (limite WhatsApp)");
-  it.todo("suggestedFollowUpMinutes é função do canal (wpp 120, email 1440)");
-  it.todo("inclui CTA de qualificação (pergunta aberta)");
-  it.todo("tenant isolation: prompt nunca referencia outro tenant");
+  it.todo("suggestedFollowUpMinutes respeita canal (wpp=120, email=1440)");
 });
 
 describe("followUpInputSchema", () => {
@@ -151,23 +134,7 @@ describe("followUpOutputSchema", () => {
 });
 
 describe("generateFollowUp (Fase 2)", () => {
-  it("por ora lança NotImplemented — scaffold RED", async () => {
-    await expect(
-      generateFollowUp({
-        tenantId: "t1",
-        leadId: "l1",
-        leadName: "João",
-        channel: "whatsapp",
-        previousMessages: [{ role: "sdr", content: "oi", at: new Date() }],
-        attempt: 1,
-        daysSinceLastReply: 3,
-      }),
-    ).rejects.toThrow(/not implemented/i);
-  });
-
-  it.todo("attempt=1 é breezy check-in");
-  it.todo("attempt=3 introduz objection-handling comum (preço/tempo)");
-  it.todo("attempt=5 sugere shouldEscalate=true E nextAttemptHours=null");
+  // Comportamentos cobertos em sdr.behavior.test.ts (com mocks do AI SDK).
+  it.todo("attempt=5 retorna shouldEscalate=true E nextAttemptHours=null");
   it.todo("nunca repete verbatim o texto da attempt anterior");
-  it.todo("respeita janela de 24h do WhatsApp (não envia fora)");
 });
