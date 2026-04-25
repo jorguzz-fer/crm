@@ -39,6 +39,7 @@ model Tenant {
   followUpAlerts   AiFollowUpAlert[]
   waInstance       WhatsAppInstance?
   waConversations  WhatsAppConversation[]
+  attachments      Attachment[]
 
   @@index([slug])
 }
@@ -67,6 +68,7 @@ model User {
   tasksAssigned         Task[]          @relation("TaskAssignee")
   notes                 Note[]          @relation("NoteAuthor")
   visits                Visit[]
+  attachments           Attachment[]
   consentCollected      ConsentRecord[] @relation("ConsentCollector")
   dataRequestsMade      DataRequest[]   @relation("DataRequestRequester")
   dataRequestsProcessed DataRequest[]   @relation("DataRequestProcessor")
@@ -248,6 +250,7 @@ model Lead {
   opportunities   Opportunity[]
   followUpAlerts  AiFollowUpAlert[]
   waConversations WhatsAppConversation[]
+  attachments     Attachment[]
 
   @@index([tenantId, status])
   @@index([tenantId, assignedTo])
@@ -356,10 +359,11 @@ model Opportunity {
   company  Company? @relation(fields: [companyId], references: [id])
   contact  Contact? @relation(fields: [contactId], references: [id])
   assignee User?    @relation("OpportunityAssignee", fields: [assignedTo], references: [id])
-  notes    Note[]
-  activities Activity[]
-  tasks    Task[]
-  visits   Visit[]
+  notes       Note[]
+  activities  Activity[]
+  tasks       Task[]
+  visits      Visit[]
+  attachments Attachment[]
 
   @@index([tenantId, stageId])
   @@index([tenantId, pipelineId])
@@ -437,6 +441,7 @@ model Note {
   company     Company?     @relation(fields: [companyId], references: [id])
   contact     Contact?     @relation(fields: [contactId], references: [id])
   opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+  attachments Attachment[]
 
   @@index([tenantId, leadId])
   @@index([tenantId, opportunityId])
@@ -578,11 +583,12 @@ model Visit {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant      Tenant      @relation(fields: [tenantId], references: [id])
-  user        User        @relation(fields: [userId], references: [id])
-  lead        Lead?       @relation(fields: [leadId], references: [id])
-  company     Company?    @relation(fields: [companyId], references: [id])
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  lead        Lead?        @relation(fields: [leadId], references: [id])
+  company     Company?     @relation(fields: [companyId], references: [id])
   opportunity Opportunity? @relation(fields: [opportunityId], references: [id])
+  attachments Attachment[]
 
   @@index([tenantId, visitedAt])
   @@index([tenantId, userId])
@@ -653,4 +659,36 @@ model WhatsAppMessage {
 
   @@index([conversationId, timestamp])
   @@index([tenantId, timestamp])
+}
+
+// ── Anexos (Cloudflare R2) ────────────────────────────────────────────────────
+
+model Attachment {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String                       // quem fez o upload
+  key       String   @unique             // caminho completo no R2
+  filename  String                       // nome original (exibição)
+  mimeType  String
+  size      Int                          // bytes
+
+  // Entidade dona do anexo — só um será preenchido
+  noteId        String?
+  visitId       String?
+  leadId        String?
+  opportunityId String?
+
+  createdAt DateTime @default(now())
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id])
+  note        Note?        @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  visit       Visit?       @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  lead        Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, noteId])
+  @@index([tenantId, visitId])
+  @@index([tenantId, leadId])
+  @@index([tenantId, opportunityId])
 }
