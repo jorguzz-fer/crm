@@ -12,10 +12,7 @@ export default defineConfig({
     outDir:     "dist",
     emptyOutDir: true,
     // Necessário para Content Scripts isolados (Manifest V3)
-    rollupOptions: {
-      input: {
-        popup: "src/popup/index.html",
-      },
-    },
+    // crxjs infers entries from manifest; explicit rollupOptions not needed
+    rollupOptions: {},
   },
 });

@@ -15,7 +15,7 @@
   ],
 
   "action": {
-    "default_popup": "popup/index.html",
+    "default_popup": "src/popup/index.html",
     "default_title": "CRM — Captura de Lead",
     "default_icon": {
       "16":  "icons/icon-16.png",
@@ -26,14 +26,14 @@
   },
 
   "background": {
-    "service_worker": "background/service-worker.js",
+    "service_worker": "src/background/service-worker.ts",
     "type": "module"
   },
 
   "content_scripts": [
     {
       "matches": ["https://www.linkedin.com/*"],
-      "js": ["content/content.js"],
+      "js": ["src/content/content.ts"],
       "run_at": "document_idle"
     }
   ],
