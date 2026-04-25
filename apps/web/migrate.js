@@ -74,6 +74,10 @@ const MIGRATIONS = [
     name: "0013_campaign_spend",
     check: `SELECT COUNT(*)::int AS cnt FROM information_schema.tables WHERE table_schema='public' AND table_name='CampaignSpend'`,
   },
+  {
+    name: "0014_membership_capacity",
+    check: `SELECT COUNT(*)::int AS cnt FROM information_schema.columns WHERE table_schema='public' AND table_name='Membership' AND column_name='acceptingLeads'`,
+  },
 ];
 
 /**

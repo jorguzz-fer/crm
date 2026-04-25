@@ -147,10 +147,12 @@ enum DataRequestStatus {
 }
 
 model Membership {
-  id       String @id @default(cuid())
-  tenantId String
-  userId   String
-  role     Role   @default(ANALYST)
+  id              String  @id @default(cuid())
+  tenantId        String
+  userId          String
+  role            Role    @default(ANALYST)
+  acceptingLeads  Boolean @default(true)
+  maxLeads        Int?    // null = ilimitado
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
