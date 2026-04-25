@@ -47,7 +47,7 @@ function getClient(): S3Client {
 
 export interface StorageUploadParams {
   tenantId:   string;
-  entityType: "note" | "visit" | "lead" | "opportunity";
+  entityType: "note" | "visit" | "lead" | "opportunity" | "audio";
   entityId:   string;
   filename:   string;
   mimeType:   string;

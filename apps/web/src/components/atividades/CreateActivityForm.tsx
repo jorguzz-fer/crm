@@ -1,7 +1,9 @@
 "use client";
 
-import { useActionState, useRef, useEffect } from "react";
+import { useActionState, useRef, useEffect, useState } from "react";
 import { createActivityAction } from "@/app/actions/activities";
+import { AudioTranscriber } from "@/components/ai/AudioTranscriber";
+import { Mic } from "lucide-react";
 
 const I = "w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
@@ -22,10 +24,21 @@ function localNow() {
 export function CreateActivityForm({ leads = [], opportunities = [], defaultLeadId, defaultOpportunityId }: Props) {
   const [state, action, pending] = useActionState(createActivityAction, null);
   const ref = useRef<HTMLFormElement>(null);
+  const [description, setDescription]     = useState("");
+  const [showTranscriber, setShowTranscriber] = useState(false);
 
   useEffect(() => {
-    if (state && "success" in state) ref.current?.reset();
+    if (state && "success" in state) {
+      ref.current?.reset();
+      setDescription("");
+      setShowTranscriber(false);
+    }
   }, [state]);
+
+  function handleTranscribed(text: string) {
+    setDescription((prev) => (prev ? `${prev}\n\n${text}` : text));
+    setShowTranscriber(false);
+  }
 
   return (
     <form ref={ref} action={action} className="rounded-lg border border-border bg-card p-4 space-y-4">
@@ -69,10 +82,29 @@ export function CreateActivityForm({ leads = [], opportunities = [], defaultLead
         </div>
 
         <div className="space-y-1 sm:col-span-2">
-          <label className="text-sm font-medium">Descrição</label>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium">Descrição</label>
+            <button
+              type="button"
+              onClick={() => setShowTranscriber((v) => !v)}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              title="Transcrever áudio"
+            >
+              <Mic size={12} />
+              {showTranscriber ? "Fechar áudio" : "Transcrever áudio"}
+            </button>
+          </div>
+          {showTranscriber && (
+            <AudioTranscriber
+              onTranscribed={handleTranscribed}
+              entityType="activity"
+            />
+          )}
           <textarea
             name="description"
             rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             className={`${I} resize-none`}
             placeholder="Detalhes sobre a atividade..."
           />

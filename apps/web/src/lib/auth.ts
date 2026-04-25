@@ -4,7 +4,7 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { authenticator } from "otplib";
+import { verifySync } from "otplib";
 import { prisma } from "@crm/db";
 import { rateLimit } from "@/lib/rateLimit";
 import { authConfig } from "@/lib/auth.config";
@@ -66,8 +66,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // 2FA TOTP — se habilitado, verifica o código antes de concluir o login
         if (user.twoFactorEnabled && user.twoFactorSecret) {
           const totp = parsed.data.totp ?? "";
-          const totpValid = authenticator.verify({ token: totp, secret: user.twoFactorSecret });
-          if (!totpValid) return null;
+          const totpResult = verifySync({ token: totp, secret: user.twoFactorSecret });
+          if (!totpResult.valid) return null;
         }
 
         return {

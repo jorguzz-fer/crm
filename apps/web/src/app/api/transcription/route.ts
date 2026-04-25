@@ -20,7 +20,7 @@ import { requireRole, ROLES_WRITE } from "@/lib/authz";
 import { prisma } from "@crm/db";
 import { generateUploadUrl, buildObjectKey, deleteObject } from "@/lib/storage";
 import { logAudit } from "@/lib/audit";
-import { createId } from "@paralleldrive/cuid2";
+import { randomUUID } from "crypto";
 
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25 MB
 
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
 
   const transcription = await prisma.transcription.create({
     data: {
-      id:           createId(),
+      id:           randomUUID(),
       tenantId,
       userId,
       audioKey,

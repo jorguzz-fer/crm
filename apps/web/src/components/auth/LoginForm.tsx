@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useEffect } from "react";
 import { loginAction } from "@/app/actions/auth";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
@@ -17,26 +17,17 @@ export function LoginForm({
   const [state, action, pending] = useActionState(loginAction, null);
   const [totpRequired, setTotpRequired] = useState(false);
 
-  // Detecta o sinal de 2FA obrigatório e exibe o campo
-  const needTotp =
-    totpRequired ||
-    (state != null && "requireTotp" in state && state.requireTotp === true);
+  // Detecta o sinal de 2FA retornado pelo servidor e marca localmente
+  useEffect(() => {
+    if (state && "requireTotp" in state && state.requireTotp) {
+      setTotpRequired(true);
+    }
+  }, [state]);
+
+  const needTotp = totpRequired;
 
   const errorMessage =
     (state && "error" in state ? state.error : null) ?? urlError ?? null;
-
-  function wrappedAction(formData: FormData) {
-    // Se o servidor retornou requireTotp, marca localmente antes de re-enviar
-    return action(formData);
-  }
-
-  // Atualiza o estado local quando o servidor pede TOTP
-  const formAction = async (formData: FormData) => {
-    const result = await action(formData);
-    if (result && "requireTotp" in result && result.requireTotp) {
-      setTotpRequired(true);
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -59,7 +50,7 @@ export function LoginForm({
         </div>
       )}
 
-      <form action={formAction} className="space-y-4">
+      <form action={action} className="space-y-4">
         <div className="space-y-1">
           <label htmlFor="email" className="text-sm font-medium">
             E-mail

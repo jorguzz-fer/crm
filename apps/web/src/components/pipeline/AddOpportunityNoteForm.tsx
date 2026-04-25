@@ -1,27 +1,64 @@
 "use client";
 
-import { useActionState, useRef, useEffect } from "react";
+import { useActionState, useRef, useEffect, useState } from "react";
 import { addOpportunityNoteAction } from "@/app/actions/opportunities";
+import { AudioTranscriber } from "@/components/ai/AudioTranscriber";
+import { Mic } from "lucide-react";
 
 export function AddOpportunityNoteForm({ opportunityId }: { opportunityId: string }) {
   const [state, action, pending] = useActionState(addOpportunityNoteAction, null);
   const ref = useRef<HTMLFormElement>(null);
+  const [content, setContent]           = useState("");
+  const [showTranscriber, setShowTranscriber] = useState(false);
 
   useEffect(() => {
-    if (state && "success" in state) ref.current?.reset();
+    if (state && "success" in state) {
+      ref.current?.reset();
+      setContent("");
+      setShowTranscriber(false);
+    }
   }, [state]);
+
+  function handleTranscribed(text: string) {
+    setContent((prev) => (prev ? `${prev}\n\n${text}` : text));
+    setShowTranscriber(false);
+  }
 
   return (
     <form ref={ref} action={action} className="rounded-lg border border-border bg-card p-4 space-y-3">
       <input type="hidden" name="opportunityId" value={opportunityId} />
-      <h2 className="text-sm font-semibold">Adicionar nota</h2>
+
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold">Adicionar nota</h2>
+        <button
+          type="button"
+          onClick={() => setShowTranscriber((v) => !v)}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          title="Transcrever áudio"
+        >
+          <Mic size={12} />
+          {showTranscriber ? "Fechar áudio" : "Transcrever áudio"}
+        </button>
+      </div>
+
       {state && "error" in state && (
         <p className="text-xs text-destructive">{state.error}</p>
       )}
+
+      {showTranscriber && (
+        <AudioTranscriber
+          onTranscribed={handleTranscribed}
+          entityType="note"
+          entityId={opportunityId}
+        />
+      )}
+
       <textarea
         name="content"
         rows={3}
         required
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
         placeholder="Escreva uma nota sobre esta oportunidade..."
         className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
       />

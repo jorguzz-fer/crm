@@ -13,11 +13,9 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@crm/db";
-import { authenticator } from "otplib";
+import { generateSecret, generateURI, verifySync } from "otplib";
 import QRCode from "qrcode";
 import { logAudit } from "@/lib/audit";
-
-authenticator.options = { digits: 6, step: 30 };
 
 export type TwoFactorSetupResult =
   | { error: string }
@@ -37,7 +35,7 @@ export async function setup2FAAction(): Promise<TwoFactorSetupResult> {
   if (!user) return { error: "Usuário não encontrado" };
   if (user.twoFactorEnabled) return { error: "2FA já está ativo" };
 
-  const secret = authenticator.generateSecret(20);
+  const secret = generateSecret({ length: 20 });
 
   // Salva o secret temporariamente (sem marcar twoFactorEnabled = true)
   // Só será confirmado após verificação do código
@@ -46,8 +44,7 @@ export async function setup2FAAction(): Promise<TwoFactorSetupResult> {
     data: { twoFactorSecret: secret },
   });
 
-  const tenantName = "CRM"; // label no autenticador
-  const otpAuthUrl = authenticator.keyuri(user.email, tenantName, secret);
+  const otpAuthUrl = generateURI({ issuer: "CRM", label: user.email, secret });
   const qrDataUrl  = await QRCode.toDataURL(otpAuthUrl, { width: 256, margin: 2 });
 
   return { qrDataUrl, secret, otpAuthUrl };
@@ -74,7 +71,7 @@ export async function enable2FAAction(
   if (user.twoFactorEnabled) return { error: "2FA já está ativo" };
   if (!user.twoFactorSecret) return { error: "Inicie a configuração primeiro" };
 
-  const valid = authenticator.verify({ token: code, secret: user.twoFactorSecret });
+  const valid = verifySync({ token: code, secret: user.twoFactorSecret }).valid;
   if (!valid) return { error: "Código inválido ou expirado. Tente novamente." };
 
   await prisma.user.update({
@@ -114,7 +111,7 @@ export async function disable2FAAction(
     return { error: "2FA não está ativo" };
   }
 
-  const valid = authenticator.verify({ token: code, secret: user.twoFactorSecret });
+  const valid = verifySync({ token: code, secret: user.twoFactorSecret }).valid;
   if (!valid) return { error: "Código inválido ou expirado" };
 
   await prisma.user.update({
