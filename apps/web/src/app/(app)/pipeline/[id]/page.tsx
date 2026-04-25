@@ -11,6 +11,8 @@ import { OpportunityStatusForm } from "@/components/pipeline/OpportunityStatusFo
 import { AddOpportunityNoteForm } from "@/components/pipeline/AddOpportunityNoteForm";
 import { SummarizeButton } from "@/components/ai/SummarizeButton";
 import { summarizeOpportunityAction } from "@/app/actions/ai";
+import { EntityAttachments } from "@/components/attachments/EntityAttachments";
+import type { AttachmentItem } from "@/components/attachments/AttachmentList";
 
 const ACTIVITY_LABELS: Record<string, string> = {
   LIGACAO: "Ligação", EMAIL: "E-mail", REUNIAO: "Reunião",
@@ -57,6 +59,10 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
         where: { completedAt: null },
         orderBy: { dueAt: "asc" },
       },
+      attachments: {
+        include: { user: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -92,6 +98,18 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
     opp.status === "ABERTA" &&
     opp.expectedCloseAt &&
     opp.expectedCloseAt < new Date();
+
+  const canManage = ["SUPERADMIN", "ADMIN", "SUPERVISOR"].includes(session!.user.role);
+  const isOwner   = opp.assignedTo === session!.user.id;
+
+  const attachmentItems: AttachmentItem[] = opp.attachments.map((a) => ({
+    id:        a.id,
+    filename:  a.filename,
+    mimeType:  a.mimeType,
+    size:      a.size,
+    createdAt: a.createdAt.toISOString(),
+    user:      a.user ? { name: a.user.name } : undefined,
+  }));
 
   return (
     <div className="space-y-6">
@@ -224,6 +242,17 @@ export default async function OpportunityDetailPage({ params }: { params: Promis
               ))}
             </div>
           )}
+
+          {/* Anexos */}
+          <div className="rounded-lg border border-border bg-card p-4">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Anexos</h2>
+            <EntityAttachments
+              entityType="opportunity"
+              entityId={opp.id}
+              initialAttachments={attachmentItems}
+              canDelete={canManage || isOwner}
+            />
+          </div>
         </div>
 
         {/* Right: timeline */}

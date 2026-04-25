@@ -12,6 +12,8 @@ import { deleteLeadAction } from "@/app/actions/leads";
 import { SummarizeButton } from "@/components/ai/SummarizeButton";
 import { summarizeLeadAction } from "@/app/actions/ai";
 import { WhatsAppThread } from "@/components/whatsapp/WhatsAppThread";
+import { EntityAttachments } from "@/components/attachments/EntityAttachments";
+import type { AttachmentItem } from "@/components/attachments/AttachmentList";
 
 const SOURCE_LABELS: Record<string, string> = {
   WEBSITE: "Website", WHATSAPP: "WhatsApp", INSTAGRAM: "Instagram",
@@ -39,6 +41,10 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     include: {
       assignee: { select: { name: true } },
       notes: {
+        include: { user: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+      },
+      attachments: {
         include: { user: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
       },
@@ -85,6 +91,18 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   ]);
 
   const waConnected = waInstance?.status === "CONNECTED";
+
+  const canManage = ["SUPERADMIN", "ADMIN", "SUPERVISOR"].includes(session!.user.role);
+  const isOwner   = lead.assignedTo === session!.user.id;
+
+  const attachmentItems: AttachmentItem[] = lead.attachments.map((a) => ({
+    id:        a.id,
+    filename:  a.filename,
+    mimeType:  a.mimeType,
+    size:      a.size,
+    createdAt: a.createdAt.toISOString(),
+    user:      a.user ? { name: a.user.name } : undefined,
+  }));
 
   return (
     <div className="space-y-6">
@@ -184,6 +202,17 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               ))}
             </div>
           )}
+
+          {/* Anexos */}
+          <div className="rounded-lg border border-border bg-card p-4">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Anexos</h2>
+            <EntityAttachments
+              entityType="lead"
+              entityId={lead.id}
+              initialAttachments={attachmentItems}
+              canDelete={canManage || isOwner}
+            />
+          </div>
         </div>
 
         {/* WhatsApp */}

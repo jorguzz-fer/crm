@@ -5,6 +5,8 @@ import Link from "next/link";
 import { MapPin, Calendar, User, Trash2 } from "lucide-react";
 import { NovaVisitaForm } from "@/components/visitas/NovaVisitaForm";
 import { deleteVisitAction } from "@/app/actions/visits";
+import { EntityAttachments } from "@/components/attachments/EntityAttachments";
+import type { AttachmentItem } from "@/components/attachments/AttachmentList";
 
 export const metadata: Metadata = { title: "Visitas de campo" };
 
@@ -37,6 +39,10 @@ export default async function VisitasPage({ searchParams }: Props) {
         lead:        { select: { id: true, name: true } },
         company:     { select: { id: true, name: true } },
         opportunity: { select: { id: true, title: true } },
+        attachments: {
+          include: { user: { select: { name: true } } },
+          orderBy: { createdAt: "desc" },
+        },
       },
       orderBy: { visitedAt: "desc" },
       skip: (page - 1) * perPage,
@@ -131,8 +137,8 @@ export default async function VisitasPage({ searchParams }: Props) {
           ) : (
             <div className="space-y-3">
               {visits.map((v) => (
-                <div key={v.id} className="group rounded-lg border border-border bg-card p-4 hover:border-primary/30 transition-colors">
-                  <div className="flex items-start gap-3">
+                <div key={v.id} className="group rounded-lg border border-border bg-card hover:border-primary/30 transition-colors overflow-hidden">
+                  <div className="flex items-start gap-3 p-4">
                     {/* Ícone — verde se tem geo, cinza se não tem */}
                     <div className={`mt-0.5 shrink-0 rounded-lg p-1.5 ${v.lat ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
                       <MapPin size={14} />
@@ -210,6 +216,22 @@ export default async function VisitasPage({ searchParams }: Props) {
                       </form>
                     )}
                   </div>
+
+                  {/* Anexos colapsável */}
+                  <EntityAttachments
+                    entityType="visit"
+                    entityId={v.id}
+                    initialAttachments={v.attachments.map((a): AttachmentItem => ({
+                      id:        a.id,
+                      filename:  a.filename,
+                      mimeType:  a.mimeType,
+                      size:      a.size,
+                      createdAt: a.createdAt.toISOString(),
+                      user:      a.user ? { name: a.user.name } : undefined,
+                    }))}
+                    canDelete={isManager || v.userId === session!.user.id}
+                    collapsible
+                  />
                 </div>
               ))}
             </div>
