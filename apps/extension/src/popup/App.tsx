@@ -37,16 +37,15 @@ function extractLinkedInData() {
     document.querySelector("a[href^='mailto:']")
       ?.getAttribute("href")?.replace("mailto:", "").trim() || "";
 
-  return { name, title, company, email, source: "COLD_OUTREACH", linkedinUrl: window.location.href };
-}
-
-interface LinkedInCapture {
-  name: string;
-  title?: string;
-  company?: string;
-  email?: string;
-  linkedinUrl?: string;
-  source?: string;
+  // Mapeia title → position para bater com LeadData
+  return {
+    name,
+    position: title,       // LeadData usa `position`, não `title`
+    company,
+    email,
+    source: "COLD_OUTREACH" as const,
+    linkedinUrl: window.location.href,
+  };
 }
 
 const SOURCES = [
@@ -340,7 +339,7 @@ export function App() {
       // 1) Verifica se o content script já salvou dados na sessão
       const session = await chrome.storage.session.get(["linkedinCapture"]);
       if (session.linkedinCapture) {
-        setLinkedinPrefill(session.linkedinCapture as LinkedInCapture);
+        setLinkedinPrefill(session.linkedinCapture as Partial<LeadData>);
         chrome.storage.session.remove("linkedinCapture");
         setScreen("capture");
         return;
@@ -356,7 +355,7 @@ export function App() {
           });
           const data = results?.[0]?.result;
           if (data?.name) {
-            setLinkedinPrefill(data as LinkedInCapture);
+            setLinkedinPrefill(data as Partial<LeadData>);
             setScreen("capture");
             return;
           }
@@ -406,7 +405,7 @@ export function App() {
         // Extrai dados da página atual
         const session = await chrome.storage.session.get(["linkedinCapture"]);
         if (session.linkedinCapture) {
-          setLinkedinPrefill(session.linkedinCapture as LinkedInCapture);
+          setLinkedinPrefill(session.linkedinCapture as Partial<LeadData>);
           chrome.storage.session.remove("linkedinCapture");
         } else {
           setLinkedinPrefill({});
