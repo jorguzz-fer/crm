@@ -43,56 +43,67 @@ function getProfileData(): ProfileData {
   // ── 2) HEADLINE / CARGO ──────────────────────────────────────────────────
   let title = "";
 
-  // og:title às vezes tem "Nome – Cargo | LinkedIn"
-  const titleFromOgTitle = (() => {
-    const m = ogTitle.match(/[–—]\s*(.+?)\s*\|/);
-    return m ? m[1].trim() : "";
-  })();
-
-  // Tenta seletores CSS encadeados
+  // A) Seletores CSS do LinkedIn (classes relativamente estáveis)
   const headlineSelectors = [
     ".text-body-medium.break-words",
     ".pv-text-details__left-panel .text-body-medium",
+    "[data-generated-suggestion-target]",
     ".ph5 .text-body-medium",
     "main .text-body-medium",
   ];
   for (const sel of headlineSelectors) {
     const el = document.querySelector<HTMLElement>(sel);
     const t  = el?.innerText?.trim();
-    if (t && t.length > 5 && !/conexões|connections|\d+\+/i.test(t)) {
+    if (t && t.length >= 3 && t.length < 300 && !/conexões|connections|\d+\+/i.test(t)) {
       title = t; break;
     }
   }
 
-  // B) Structural: irmão seguinte do h1 que parece um headline (não depende de classes)
+  // B) Estrutural: percorre ancestrais do h1 procurando o próximo irmão com texto de headline
+  // O LinkedIn envolve o h1 em até 3 níveis de div — precisamos subir na árvore.
   if (!title) {
     const h1 = document.querySelector<HTMLElement>("main h1") || document.querySelector<HTMLElement>("h1");
-    if (h1?.parentElement) {
-      let sib = h1.nextElementSibling as HTMLElement | null;
-      let tries = 0;
-      while (sib && tries < 5) {
-        const t = sib.innerText?.trim();
-        if (t && t.length > 5 && !/conexões|connections|\d+\+|\bseguidor|\bfollower/i.test(t)) {
-          title = t; break;
+    if (h1) {
+      let ancestor: HTMLElement | null = h1;
+      outer: for (let depth = 0; depth < 4 && ancestor; depth++, ancestor = ancestor.parentElement) {
+        const parent = ancestor.parentElement;
+        if (!parent) continue;
+        const children = Array.from(parent.children) as HTMLElement[];
+        const idx = children.indexOf(ancestor);
+        for (let j = idx + 1; j < Math.min(idx + 4, children.length); j++) {
+          const t = children[j]?.innerText?.trim();
+          // Não começa com dígito (location/stats) e não contém conexões/seguidores
+          if (
+            t && t.length >= 3 && t.length < 250 &&
+            !/conexões|connections|\d+\s*(conexões|followers|seguidores)|seguem/i.test(t) &&
+            !/^\d/.test(t)
+          ) { title = t; break outer; }
         }
-        sib = sib.nextElementSibling as HTMLElement | null;
-        tries++;
       }
     }
   }
 
-  // C) Varredura de todos .text-body-medium
+  // C) Varredura de todos .text-body-medium (min reduzido para 3 chars — ex: CEO)
   if (!title) {
     for (const el of Array.from(document.querySelectorAll<HTMLElement>(".text-body-medium"))) {
       const t = el.innerText?.trim();
-      if (t && t.length > 10 && t.length < 300 && !/conexões|connections|\d+\+|\bseguidor/i.test(t)) {
+      if (t && t.length >= 3 && t.length < 300 && !/conexões|connections|\d+\+|\bseguidor/i.test(t)) {
         title = t; break;
       }
     }
   }
 
-  // D) og:title — "Nome – Headline | LinkedIn"
-  if (!title && titleFromOgTitle) title = titleFromOgTitle;
+  // D) document.title — "Nome - Headline | LinkedIn" (algumas versões do LinkedIn)
+  if (!title) {
+    const m = document.title.match(/^[^|–—-]+\s*[-–—]\s*(.+?)\s*\|\s*LinkedIn/i);
+    if (m?.[1] && m[1].length >= 3 && m[1].length < 200) title = m[1].trim();
+  }
+
+  // E) og:title — "Nome – Cargo | LinkedIn" (válido em hard-nav; ogTitle já declarado acima)
+  if (!title && ogTitle) {
+    const m = ogTitle.match(/[–—]\s*(.+?)\s*\|/);
+    if (m?.[1]) title = m[1].trim();
+  }
 
   // ── 3) EMPRESA ───────────────────────────────────────────────────────────
   // Links /company/ no href são muito mais estáveis que classes CSS ou aria-labels.
