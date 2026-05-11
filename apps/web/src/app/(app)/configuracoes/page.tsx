@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@crm/db";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Plug } from "lucide-react";
 import { TenantForm } from "./TenantForm";
 import { InviteUserForm } from "./InviteUserForm";
 import { UserTable } from "./UserTable";
@@ -38,6 +38,13 @@ export default async function ConfiguracoesPage() {
           >
             <ShieldCheck size={14} />
             Segurança &amp; 2FA
+          </Link>
+          <Link
+            href="/configuracoes/integracoes"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-accent"
+          >
+            <Plug size={14} />
+            Integrações
           </Link>
         </div>
       </div>

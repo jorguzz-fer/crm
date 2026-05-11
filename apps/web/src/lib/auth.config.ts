@@ -17,6 +17,8 @@ export const PUBLIC_PATHS = [
   "/api/extension",
   // Formulários públicos de sites/landing pages (sem auth, rate-limited por IP)
   "/api/public",
+  // OAuth callback do Meta — chega via redirect do Facebook (cookie de sessão é preservado)
+  "/api/integrations/meta/callback",
   "/privacidade",
   "/termos",
   "/forgot-password",
