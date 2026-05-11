@@ -14,10 +14,11 @@
 // ── Extração de dados do perfil ───────────────────────────────────────────────
 
 interface ProfileData {
-  name:       string;
-  title:      string;
-  company:    string;
-  email:      string;
+  name:        string;
+  title:       string;
+  company:     string;
+  email:       string;
+  phone:       string;
   linkedinUrl: string;
 }
 
@@ -43,7 +44,11 @@ function getProfileData(): ProfileData {
   // ── 2) HEADLINE / CARGO ──────────────────────────────────────────────────
   let title = "";
 
-  // A) Seletores CSS do LinkedIn (classes relativamente estáveis)
+  // Helper: pega só a primeira linha não-vazia (evita pegar localização/seguidores juntos)
+  const firstLine = (s: string) =>
+    s.split(/\n/).map(l => l.trim()).find(l => l.length > 0) ?? "";
+
+  // A) Seletores CSS do LinkedIn — pega só a 1ª linha do elemento
   const headlineSelectors = [
     ".text-body-medium.break-words",
     ".pv-text-details__left-panel .text-body-medium",
@@ -53,7 +58,8 @@ function getProfileData(): ProfileData {
   ];
   for (const sel of headlineSelectors) {
     const el = document.querySelector<HTMLElement>(sel);
-    const t  = el?.innerText?.trim();
+    const raw = (el?.innerText || el?.textContent || "").trim();
+    const t   = firstLine(raw);
     if (t && t.length >= 3 && t.length < 300 && !/conexões|connections|\d+\+/i.test(t)) {
       title = t; break;
     }
@@ -71,7 +77,8 @@ function getProfileData(): ProfileData {
         const children = Array.from(parent.children) as HTMLElement[];
         const idx = children.indexOf(ancestor);
         for (let j = idx + 1; j < Math.min(idx + 4, children.length); j++) {
-          const t = children[j]?.innerText?.trim();
+          const raw = (children[j]?.innerText || children[j]?.textContent || "").trim();
+          const t   = firstLine(raw);
           // Não começa com dígito (location/stats) e não contém conexões/seguidores
           if (
             t && t.length >= 3 && t.length < 250 &&
@@ -144,17 +151,74 @@ function getProfileData(): ProfileData {
     }
   }
 
-  // ── 5) Email ──────────────────────────────────────────────────────────────
-  const email =
-    document.querySelector("a[href^='mailto:']")
-      ?.getAttribute("href")?.replace("mailto:", "").trim() || "";
+  // E-mail e telefone vêm do modal "Dados de contato" (extractContactModal).
+  // Não usamos a[href^="mailto:"] na página — pode pegar e-mails de outras pessoas.
 
-  return { name, title, company, email, linkedinUrl: cleanLinkedInUrl(window.location.href) };
+  return { name, title, company, email: "", phone: "", linkedinUrl: cleanLinkedInUrl(window.location.href) };
 }
 
 function cleanLinkedInUrl(url: string): string {
   const m = url.match(/(https?:\/\/[^/]+\/in\/[^/?#]+)/);
   return m ? `${m[1]}/` : url;
+}
+
+/**
+ * Clica no link "Dados de contato" do LinkedIn, aguarda o modal abrir,
+ * extrai e-mail e telefone, depois fecha o modal (se fomos nós que abrimos).
+ * Resolve com strings vazias caso o link não exista ou o perfil não exponha os dados.
+ */
+async function extractContactModal(): Promise<{ email: string; phone: string }> {
+  const isModalOpen = () =>
+    !!document.querySelector(".artdeco-modal__content, .pv-contact-info__contact-item");
+
+  const alreadyOpen = isModalOpen();
+
+  if (!alreadyOpen) {
+    const link = document.querySelector<HTMLAnchorElement>('a[href*="overlay/contact-info"]');
+    if (!link) return { email: "", phone: "" };
+    link.click();
+
+    // Aguarda o modal aparecer (máx ~2 s)
+    await new Promise<void>((resolve) => {
+      let tries = 0;
+      const t = setInterval(() => {
+        if (isModalOpen() || tries++ >= 25) { clearInterval(t); resolve(); }
+      }, 80);
+    });
+  }
+
+  const content = document.querySelector<HTMLElement>(".artdeco-modal__content");
+  if (!content) return { email: "", phone: "" };
+
+  // E-mail
+  const emailEl = content.querySelector<HTMLAnchorElement>("a[href^='mailto:']");
+  const email    = emailEl?.getAttribute("href")?.replace("mailto:", "").trim() ?? "";
+
+  // Telefone — procura seção cujo cabeçalho menciona "Telefone"/"Phone"
+  let phone = "";
+  for (const section of Array.from(content.querySelectorAll<HTMLElement>("section"))) {
+    if (/telefone|phone/i.test(section.textContent ?? "")) {
+      for (const span of Array.from(section.querySelectorAll<HTMLElement>("span"))) {
+        const raw = span.textContent?.trim() ?? "";
+        // Remove sufixo de tipo "(Celular)" e valida que é um número
+        const num = raw.replace(/\s*\([^)]+\)\s*$/, "").trim();
+        if (/^[\d\s\-\(\)\+]{7,}$/.test(num)) { phone = num; break; }
+      }
+      break;
+    }
+  }
+
+  // Fecha o modal somente se fomos nós que abrimos
+  if (!alreadyOpen) {
+    setTimeout(() => {
+      const close = document.querySelector<HTMLElement>(
+        'button[aria-label*="Fechar"], button[aria-label*="Close"], button[aria-label*="Dismiss"], .artdeco-modal__dismiss, [data-test-modal-close-btn]'
+      );
+      close?.click();
+    }, 300);
+  }
+
+  return { email, phone };
 }
 
 /** Atualiza os campos do sidebar quando o perfil carregou após a abertura */
@@ -168,7 +232,6 @@ function refreshSidebarFields(shadow: ShadowRoot) {
   };
 
   setIfEmpty("crm-name",     fresh.name);
-  setIfEmpty("crm-email",    fresh.email);
   setIfEmpty("crm-company",  fresh.company);
   setIfEmpty("crm-position", fresh.title);
 
@@ -272,12 +335,23 @@ function openSidebar() {
     panel.style.transform  = "translateX(0)";
   });
 
-  // Se dados incompletos, tenta novamente enquanto o LinkedIn termina de carregar
+  // Retry para nome/cargo/empresa (LinkedIn SPA pode não ter carregado ainda)
   if (!data.name || !data.title || !data.company) {
     setTimeout(() => refreshSidebarFields(shadow), 800);
     setTimeout(() => refreshSidebarFields(shadow), 2000);
     setTimeout(() => refreshSidebarFields(shadow), 4000);
   }
+
+  // Extrai e-mail e telefone do modal "Dados de contato" de forma assíncrona.
+  // O sidebar já está visível — os campos preenchem quando o modal resolver.
+  extractContactModal().then(({ email, phone }) => {
+    const setIfEmpty = (id: string, val: string) => {
+      const el = shadow.getElementById(id) as HTMLInputElement | null;
+      if (el && !el.value.trim() && val) el.value = val;
+    };
+    setIfEmpty("crm-email", email);
+    setIfEmpty("crm-phone", phone);
+  }).catch(() => { /* silencioso */ });
 
   wireSidebarEvents(shadow, data);
 }
@@ -438,7 +512,7 @@ function buildSidebarHTML(data: ProfileData): string {
     </div>
     <div class="field">
       <label>Telefone</label>
-      <input id="crm-phone" type="tel" placeholder="+55 11 99999-9999" />
+      <input id="crm-phone" type="tel" value="${esc(data.phone)}" placeholder="+55 11 99999-9999" />
     </div>
     <div class="field">
       <label>Empresa</label>
