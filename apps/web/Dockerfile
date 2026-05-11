@@ -91,6 +91,7 @@ COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 
 COPY --from=builder /app/apps/web/create-superadmin.js ./create-superadmin.js
 COPY --from=builder /app/packages/db/prisma/seed.js ./prisma/seed.js
+COPY --from=builder /app/packages/db/prisma/seed-medicine.js ./prisma/seed-medicine.js
 COPY --chown=nextjs:nodejs apps/web/entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh
 
