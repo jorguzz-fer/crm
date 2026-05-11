@@ -43,12 +43,13 @@ function extractLinkedInData() {
     position: title,       // LeadData usa `position`, não `title`
     company,
     email,
-    source: "COLD_OUTREACH" as const,
+    source: "LINKEDIN" as const,
     linkedinUrl: window.location.href,
   };
 }
 
 const SOURCES = [
+  { value: "LINKEDIN",      label: "LinkedIn" },
   { value: "COLD_OUTREACH", label: "Prospecção" },
   { value: "INDICACAO",     label: "Indicação" },
   { value: "WEBSITE",       label: "Website" },

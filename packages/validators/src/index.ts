@@ -29,7 +29,7 @@ export type PaginationInput = z.infer<typeof paginationSchema>;
 // ─── CRM core ─────────────────────────────────────────────────────────────────
 
 export const leadStatusValues = ["NOVO", "EM_CONTATO", "QUALIFICADO", "DESQUALIFICADO", "CONVERTIDO"] as const;
-export const leadSourceValues = ["WEBSITE", "WHATSAPP", "INSTAGRAM", "FACEBOOK", "INDICACAO", "EVENTO", "COLD_OUTREACH", "OUTRO"] as const;
+export const leadSourceValues = ["WEBSITE", "WHATSAPP", "INSTAGRAM", "FACEBOOK", "LINKEDIN", "INDICACAO", "EVENTO", "COLD_OUTREACH", "OUTRO"] as const;
 export const opportunityStatusValues = ["ABERTA", "GANHA", "PERDIDA"] as const;
 export const activityTypeValues = ["LIGACAO", "EMAIL", "REUNIAO", "WHATSAPP", "VISITA", "OUTRO"] as const;
 export const priorityValues = ["BAIXA", "MEDIA", "ALTA", "URGENTE"] as const;

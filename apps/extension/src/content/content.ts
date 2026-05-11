@@ -101,7 +101,11 @@ function getProfileData(): ProfileData {
 
   for (const a of Array.from(document.querySelectorAll<HTMLElement>('a[href*="/company/"]'))) {
     const t = a.innerText?.trim();
-    if (t && t.length > 1 && t.length < 120) { company = t; break; }
+    // Exclui textos que são "X e mais N conexões seguem esta página" ou contam seguidores
+    if (
+      t && t.length > 1 && t.length < 80 &&
+      !/conexões|connections|seguem|follow|seguidores|followers|\de mais\b/i.test(t)
+    ) { company = t; break; }
   }
 
   // Fallback CSS
@@ -436,6 +440,7 @@ function buildSidebarHTML(data: ProfileData): string {
     <div class="field">
       <label>Origem</label>
       <select id="crm-source">
+        <option value="LINKEDIN" selected>LinkedIn</option>
         <option value="COLD_OUTREACH">Prospecção</option>
         <option value="INDICACAO">Indicação</option>
         <option value="WEBSITE">Website</option>

@@ -15,7 +15,7 @@ const createLeadSchema = z.object({
   phone:       z.string().max(30).optional(),
   company:     z.string().max(200).optional(),
   position:    z.string().max(200).optional(),
-  source:      z.enum(["COLD_OUTREACH", "WEBSITE", "INDICACAO", "WHATSAPP", "OUTRO"]).default("OUTRO"),
+  source:      z.enum(["COLD_OUTREACH", "WEBSITE", "INDICACAO", "WHATSAPP", "LINKEDIN", "OUTRO"]).default("OUTRO"),
   notes:       z.string().max(2000).optional(),
   linkedinUrl: z.string().url().optional().or(z.literal("")),
 });
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       email:    d.email?.trim() || null,
       phone:    d.phone?.trim() || null,
       company:  d.company?.trim() || null,
-      source:   d.source as "COLD_OUTREACH" | "WEBSITE" | "INDICACAO" | "WHATSAPP" | "OUTRO",
+      source:   d.source as "COLD_OUTREACH" | "WEBSITE" | "INDICACAO" | "WHATSAPP" | "LINKEDIN" | "OUTRO",
       status:   "NOVO",
       assignedTo: session.userId,  // auto-assign para quem capturou
     },
