@@ -15,6 +15,8 @@ export const PUBLIC_PATHS = [
   "/api/webhooks",
   // Extensão Chrome usa Bearer token — sem cookie JWT
   "/api/extension",
+  // Formulários públicos de sites/landing pages (sem auth, rate-limited por IP)
+  "/api/public",
   "/privacidade",
   "/termos",
   "/forgot-password",

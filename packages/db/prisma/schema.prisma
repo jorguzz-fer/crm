@@ -46,6 +46,7 @@ model Tenant {
   attachments      Attachment[]
   transcriptions   Transcription[]
   personalTokens   PersonalAccessToken[]
+  metaLeadForms    MetaLeadForm[]
 
   @@index([slug])
 }
@@ -825,6 +826,28 @@ model PersonalAccessToken {
 
   @@index([tenantId])
   @@index([userId])
+}
+
+// ── Captura Multicanal ────────────────────────────────────────────────────────
+
+/**
+ * MetaLeadForm — vincula uma Página do Facebook a um tenant.
+ * Quando um lead chega via Meta Lead Ads (Facebook ou Instagram),
+ * usamos o page_id para saber a qual tenant ele pertence.
+ */
+model MetaLeadForm {
+  id          String   @id @default(cuid())
+  tenantId    String
+  pageId      String   @unique   // Facebook Page ID (ex: "123456789")
+  pageName    String?            // nome legível (ex: "Medicine Cursos")
+  accessToken String             // Page Access Token (long-lived) — encriptado em prod
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 // ── Transcrição Whisper ───────────────────────────────────────────────────────
