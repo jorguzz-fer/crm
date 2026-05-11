@@ -11,7 +11,7 @@ export interface LeadData {
   phone?:    string;
   company?:  string;
   position?: string;   // cargo — mapeado para o campo `company` com nota
-  source:    "COLD_OUTREACH" | "LINKEDIN" | "WEBSITE" | "OUTRO";
+  source:    "COLD_OUTREACH" | "WEBSITE" | "INDICACAO" | "WHATSAPP" | "OUTRO";
   notes?:    string;
   linkedinUrl?: string;
 }

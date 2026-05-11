@@ -4,6 +4,42 @@ import { validateToken, createLead, getRecentLeads, type Lead, type LeadData } f
 
 type Screen = "loading" | "setup" | "main" | "capture" | "success";
 
+/**
+ * Função injetada no contexto da página LinkedIn via chrome.scripting.executeScript.
+ * Deve ser serializable (sem closures externas).
+ */
+function extractLinkedInData() {
+  const name =
+    (document.querySelector("h1.text-heading-xlarge") as HTMLElement)?.innerText?.trim() ||
+    document.querySelector("h1")?.textContent?.trim() ||
+    "";
+
+  const title =
+    (document.querySelector(".text-body-medium.break-words") as HTMLElement)?.innerText?.trim() ||
+    (() => {
+      const desc =
+        document.querySelector('meta[name="description"]')?.getAttribute("content") || "";
+      const parts = desc.split("·");
+      return parts.length >= 2 ? parts[1].trim() : "";
+    })() ||
+    "";
+
+  const companyEls = document.querySelectorAll(".pv-text-details__right-panel-item-text");
+  let company = companyEls.length > 0
+    ? (companyEls[0] as HTMLElement).innerText?.trim()
+    : "";
+  if (!company) {
+    const exp = document.querySelector(".pv-top-card--experience-list .t-14.t-normal") as HTMLElement;
+    company = exp?.innerText?.trim() || "";
+  }
+
+  const email =
+    document.querySelector("a[href^='mailto:']")
+      ?.getAttribute("href")?.replace("mailto:", "").trim() || "";
+
+  return { name, title, company, email, source: "COLD_OUTREACH", linkedinUrl: window.location.href };
+}
+
 interface LinkedInCapture {
   name: string;
   title?: string;
@@ -15,9 +51,9 @@ interface LinkedInCapture {
 
 const SOURCES = [
   { value: "COLD_OUTREACH", label: "Prospecção" },
-  { value: "LINKEDIN",      label: "LinkedIn" },
-  { value: "WEBSITE",       label: "Website" },
   { value: "INDICACAO",     label: "Indicação" },
+  { value: "WEBSITE",       label: "Website" },
+  { value: "WHATSAPP",      label: "WhatsApp" },
   { value: "OUTRO",         label: "Outro" },
 ] as const;
 
@@ -301,15 +337,35 @@ export function App() {
       const leads = await getRecentLeads().catch(() => []);
       setRecentLeads(leads);
 
-      // Verifica se veio captura do LinkedIn via content script
+      // 1) Verifica se o content script já salvou dados na sessão
       const session = await chrome.storage.session.get(["linkedinCapture"]);
       if (session.linkedinCapture) {
         setLinkedinPrefill(session.linkedinCapture as LinkedInCapture);
         chrome.storage.session.remove("linkedinCapture");
         setScreen("capture");
-      } else {
-        setScreen("main");
+        return;
       }
+
+      // 2) Se estiver numa página de perfil LinkedIn, extrai dados agora
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id && tab.url?.includes("linkedin.com/in/")) {
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: extractLinkedInData,
+          });
+          const data = results?.[0]?.result;
+          if (data?.name) {
+            setLinkedinPrefill(data as LinkedInCapture);
+            setScreen("capture");
+            return;
+          }
+        }
+      } catch {
+        // sem permissão de scripting ou não é LinkedIn — ignora
+      }
+
+      setScreen("main");
     } catch {
       setScreen("setup");
     }

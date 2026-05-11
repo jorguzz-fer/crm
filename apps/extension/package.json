@@ -9,16 +9,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "react":           "^19.0.0",
-    "react-dom":       "^19.0.0"
+    "react":     "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@crxjs/vite-plugin":  "^2.0.0-beta.26",
     "@vitejs/plugin-react": "^4.3.4",
-    "@types/chrome":       "^0.0.320",
-    "@types/react":        "^19.0.0",
-    "@types/react-dom":    "^19.0.0",
-    "typescript":          "^5",
-    "vite":                "^6.0.0"
+    "@types/chrome":        "^0.0.320",
+    "@types/react":         "^19.0.0",
+    "@types/react-dom":     "^19.0.0",
+    "typescript":           "^5",
+    "vite":                 "^6.0.0"
   }
 }

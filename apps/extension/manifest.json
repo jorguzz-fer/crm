@@ -1,12 +1,14 @@
 {
   "manifest_version": 3,
   "name": "CRM — Captura de Leads",
-  "version": "1.0.0",
-  "description": "Capture leads diretamente do LinkedIn e qualquer página web para o CRM.",
+  "version": "1.1.0",
+  "description": "Capture leads do LinkedIn e qualquer página direto para o CRM.",
 
   "permissions": [
     "activeTab",
+    "scripting",
     "storage",
+    "tabs",
     "contextMenus"
   ],
   "host_permissions": [
@@ -16,7 +18,7 @@
 
   "action": {
     "default_popup": "src/popup/index.html",
-    "default_title": "CRM — Captura de Lead",
+    "default_title": "CRM",
     "default_icon": {
       "16":  "icons/icon-16.png",
       "32":  "icons/icon-32.png",
@@ -26,14 +28,14 @@
   },
 
   "background": {
-    "service_worker": "src/background/service-worker.ts",
+    "service_worker": "service-worker.js",
     "type": "module"
   },
 
   "content_scripts": [
     {
       "matches": ["https://www.linkedin.com/*"],
-      "js": ["src/content/content.ts"],
+      "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],

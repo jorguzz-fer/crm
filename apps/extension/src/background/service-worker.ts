@@ -1,90 +1,58 @@
 /**
- * Background Service Worker — Manifest V3
+ * Background Service Worker
  *
- * Responsabilidades:
- *  - Criar item no menu de contexto "Capturar como Lead"
- *  - Receber mensagens do content script (dados extraídos do LinkedIn)
- *  - Receber mensagens do popup (criar lead, validar token)
- *  - Abrir o popup programaticamente quando necessário
+ * Centraliza chamadas à API do CRM — service workers não têm restrição
+ * de CORS e não são afetados pela CSP da página LinkedIn.
+ *
+ * Mensagens aceitas (content script e popup):
+ *   CREATE_LEAD   { data }        → { ok, data } | { ok: false, error }
+ *   GET_LEADS     { limit? }      → { ok, data }
+ *   VALIDATE_ME   {}              → { ok, data }
  */
 
-import { getConfig } from "../lib/storage";
-
-// ── Menu de contexto ──────────────────────────────────────────────────────────
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id:       "capture-lead",
-    title:    "Capturar como Lead no CRM",
-    contexts: ["page", "selection"],
+async function getConfig(): Promise<{ apiUrl: string; apiToken: string } | null> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(["apiUrl", "apiToken"], (r) =>
+      resolve(r.apiUrl && r.apiToken ? { apiUrl: r.apiUrl, apiToken: r.apiToken } : null)
+    );
   });
-});
-
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId !== "capture-lead" || !tab?.id) return;
-
-  // Abre o popup programaticamente (fallback: envia mensagem ao content script)
-  // Na prática, o usuário clica no ícone da extensão após selecionar texto
-  const config = await getConfig();
-  if (!config?.apiToken) {
-    // Abre a tela de configuração
-    chrome.action.openPopup?.();
-    return;
-  }
-
-  // Passa o texto selecionado como hint para o popup
-  if (info.selectionText) {
-    await chrome.storage.session.set({ captureHint: info.selectionText });
-  }
-
-  chrome.action.openPopup?.();
-});
-
-// ── Mensagens do popup / content scripts ─────────────────────────────────────
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === "PING") {
-    sendResponse({ type: "PONG" });
-    return true;
-  }
-
-  // Injeta o content script na aba ativa para extrair dados
-  if (message.type === "EXTRACT_PAGE_DATA") {
-    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-      const tab = tabs[0];
-      if (!tab?.id) return sendResponse({ error: "Sem aba ativa" });
-
-      try {
-        const results = await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func:   extractPageDataInPage,
-        });
-        sendResponse({ data: results[0]?.result ?? null });
-      } catch (e) {
-        sendResponse({ error: String(e) });
-      }
-    });
-    return true; // async
-  }
-});
-
-// ── Função injetada na página para extrair dados ──────────────────────────────
-function extractPageDataInPage() {
-  const url = window.location.href;
-
-  // LinkedIn profile page
-  if (url.includes("linkedin.com/in/")) {
-    const name    = document.querySelector("h1")?.textContent?.trim() ?? "";
-    const title   = document.querySelector(".text-body-medium.break-words")?.textContent?.trim() ?? "";
-    const company = document.querySelector(".inline-show-more-text--is-collapsed:first-of-type")?.textContent?.trim() ?? "";
-    const email   = document.querySelector("a[href^='mailto:']")?.getAttribute("href")?.replace("mailto:", "") ?? "";
-
-    return { name, title, company, email, source: "COLD_OUTREACH", linkedinUrl: url };
-  }
-
-  // Página genérica — usa título e URL como hint
-  return {
-    name:    document.title ?? "",
-    company: new URL(url).hostname.replace("www.", ""),
-    source:  "WEBSITE",
-    pageUrl: url,
-  };
 }
+
+async function apiFetch(path: string, options: RequestInit = {}) {
+  const cfg = await getConfig();
+  if (!cfg) throw new Error("Extensão não configurada");
+  const res = await fetch(`${cfg.apiUrl.replace(/\/$/, "")}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type":  "application/json",
+      "Authorization": `Bearer ${cfg.apiToken}`,
+      ...(options.headers ?? {}),
+    },
+  });
+  const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+  if (!res.ok) throw new Error(body.error ?? `Erro ${res.status}`);
+  return body;
+}
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  (async () => {
+    try {
+      switch (msg.type) {
+        case "CREATE_LEAD":
+          sendResponse({ ok: true, data: await apiFetch("/api/extension/leads", { method: "POST", body: JSON.stringify(msg.data) }) });
+          break;
+        case "GET_LEADS":
+          sendResponse({ ok: true, data: await apiFetch(`/api/extension/leads?limit=${msg.limit ?? 5}`) });
+          break;
+        case "VALIDATE_ME":
+          sendResponse({ ok: true, data: await apiFetch("/api/extension/me") });
+          break;
+        default:
+          sendResponse({ ok: false, error: "Mensagem desconhecida" });
+      }
+    } catch (e) {
+      sendResponse({ ok: false, error: e instanceof Error ? e.message : String(e) });
+    }
+  })();
+  return true; // keep channel open for async
+});
