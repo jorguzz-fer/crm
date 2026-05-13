@@ -15,6 +15,7 @@ import {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
   getUserPages,
+  subscribePageToLeadgen,
 } from "@/lib/metaOAuth";
 
 export async function GET(req: Request) {
@@ -90,6 +91,10 @@ export async function GET(req: Request) {
           active:      true,
         },
       });
+
+      // Subscreve a página ao evento leadgen (necessário para receber webhooks)
+      await subscribePageToLeadgen(page.id, page.access_token);
+
       connected++;
     }
 

@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireRole, ROLES_ADMIN } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
+import { unsubscribePageFromApp } from "@/lib/metaOAuth";
 
 export async function GET(req: Request) {
   const { session, error } = await requireRole(ROLES_ADMIN);
@@ -34,9 +35,14 @@ export async function DELETE(req: Request) {
   // Valida que pertence ao tenant
   const record = await prisma.metaLeadForm.findFirst({
     where:  { pageId, tenantId: session.user.tenantId },
-    select: { id: true, pageName: true },
+    select: { id: true, pageName: true, accessToken: true },
   });
   if (!record) return NextResponse.json({ error: "Página não encontrada" }, { status: 404 });
+
+  // Remove subscrição do app na página antes de deletar do banco
+  if (record.accessToken) {
+    await unsubscribePageFromApp(pageId, record.accessToken);
+  }
 
   await prisma.metaLeadForm.delete({ where: { id: record.id } });
 

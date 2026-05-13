@@ -144,3 +144,58 @@ export async function getUserPages(userAccessToken: string): Promise<FacebookPag
   const data = await res.json() as { data: FacebookPage[] };
   return data.data ?? [];
 }
+
+// ── Webhook subscription por página ───────────────────────────────────────────
+
+/**
+ * Subscreve a página ao evento `leadgen` do webhook do app.
+ *
+ * Sem essa chamada, o Meta nunca envia os eventos de lead para o nosso endpoint
+ * mesmo que o webhook esteja configurado e verificado no App Dashboard.
+ *
+ * Docs: https://developers.facebook.com/docs/graph-api/reference/page/subscribed_apps/
+ */
+export async function subscribePageToLeadgen(
+  pageId:          string,
+  pageAccessToken: string,
+): Promise<boolean> {
+  try {
+    const params = new URLSearchParams({
+      subscribed_fields: "leadgen",
+      access_token:      pageAccessToken,
+    });
+
+    const res = await fetch(
+      `https://graph.facebook.com/${META_API_VERSION}/${pageId}/subscribed_apps`,
+      { method: "POST", body: params },
+    );
+
+    const data = await res.json() as { success?: boolean; error?: unknown };
+    if (!res.ok || !data.success) {
+      console.warn(`[meta] subscribePageToLeadgen falhou para pageId=${pageId}`, data.error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn(`[meta] subscribePageToLeadgen exception para pageId=${pageId}`, err);
+    return false;
+  }
+}
+
+/**
+ * Remove a subscrição do app na página (chamado ao desconectar).
+ */
+export async function unsubscribePageFromApp(
+  pageId:          string,
+  pageAccessToken: string,
+): Promise<void> {
+  try {
+    const params = new URLSearchParams({ access_token: pageAccessToken });
+    await fetch(
+      `https://graph.facebook.com/${META_API_VERSION}/${pageId}/subscribed_apps`,
+      { method: "DELETE", body: params },
+    );
+  } catch (err) {
+    console.warn(`[meta] unsubscribePageFromApp exception para pageId=${pageId}`, err);
+  }
+}
