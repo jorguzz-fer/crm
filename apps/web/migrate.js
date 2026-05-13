@@ -86,6 +86,16 @@ const MIGRATIONS = [
     name: "0015_v2_features",
     check: `SELECT COUNT(*)::int AS cnt FROM information_schema.tables WHERE table_schema='public' AND table_name='PersonalAccessToken'`,
   },
+  {
+    // 0016 adiciona LINKEDIN ao enum LeadSource.
+    // Checa se o valor existe em pg_enum.
+    name: "0016_linkedin_source",
+    check: `SELECT COUNT(*)::int AS cnt FROM pg_enum e JOIN pg_type t ON e.enumtypid = t.oid WHERE t.typname = 'LeadSource' AND e.enumlabel = 'LINKEDIN'`,
+  },
+  {
+    name: "0017_meta_lead_form",
+    check: `SELECT COUNT(*)::int AS cnt FROM information_schema.tables WHERE table_schema='public' AND table_name='MetaLeadForm'`,
+  },
 ];
 
 /**
