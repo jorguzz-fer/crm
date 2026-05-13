@@ -129,7 +129,7 @@ async function processLead({ pageId, leadgenId }: { pageId: string; leadgenId: s
   }
 
   // 2) Busca dados do lead na Graph API
-  const graphUrl = `https://graph.facebook.com/v21.0/${leadgenId}?fields=id,created_time,ad_id,ad_name,form_id,field_data&access_token=${form.accessToken}`;
+  const graphUrl = `https://graph.facebook.com/v25.0/${leadgenId}?fields=id,created_time,ad_id,ad_name,form_id,field_data&access_token=${form.accessToken}`;
 
   const res = await fetch(graphUrl);
   if (!res.ok) {

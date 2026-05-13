@@ -9,7 +9,7 @@
 
 import crypto from "crypto";
 
-const META_API_VERSION = "v21.0";
+const META_API_VERSION = "v25.0";
 
 // ── State HMAC-signed (protege o callback contra CSRF) ────────────────────────
 
