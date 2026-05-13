@@ -19,6 +19,10 @@ export const PUBLIC_PATHS = [
   "/api/public",
   // OAuth callback do Meta — chega via redirect do Facebook (cookie de sessão é preservado)
   "/api/integrations/meta/callback",
+  // Data Deletion Callback obrigatório pelo Meta (chamado pelo servidor do Facebook)
+  "/api/integrations/meta/data-deletion",
+  // Página pública de status de exclusão de dados (usuário acompanha pelo código)
+  "/dados",
   "/privacidade",
   "/termos",
   "/forgot-password",
