@@ -1,0 +1,173 @@
+{
+  "name": "Manychat → CRM (TudoMudou)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "manychat-lead",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-manychat",
+      "name": "Webhook (Manychat)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300],
+      "webhookId": "manychat-lead"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "tenantSlug",
+              "value": "SEU_TENANT_SLUG_AQUI"
+            },
+            {
+              "name": "apiToken",
+              "value": "SEU_API_TOKEN_AQUI"
+            },
+            {
+              "name": "crmUrl",
+              "value": "https://crm.tudomudou.com.br/api/public/leads"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "config",
+      "name": "Config (edite aqui)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transforma payload do Manychat → formato esperado pelo CRM (/api/public/leads)\n// Manychat envia campos como: first_name, last_name, email, phone, ig_username,\n// ad_name, channel (instagram/facebook/whatsapp), text (última mensagem), etc.\n\nconst body = $('Webhook (Manychat)').first().json.body ?? $('Webhook (Manychat)').first().json;\nconst config = $('Config (edite aqui)').first().json;\n\n// Constrói o nome — Manychat geralmente separa first/last\nconst firstName = body.first_name ?? body.firstName ?? '';\nconst lastName  = body.last_name  ?? body.lastName  ?? '';\nconst fullName  = (body.full_name ?? body.name ?? `${firstName} ${lastName}`).trim() || 'Lead Manychat';\n\n// Mapeia o canal do Manychat para o enum source do CRM\nconst channelMap = {\n  instagram:        'INSTAGRAM',\n  ig:               'INSTAGRAM',\n  facebook:         'FACEBOOK',\n  fb:               'FACEBOOK',\n  messenger:        'FACEBOOK',\n  whatsapp:         'WHATSAPP',\n  wa:               'WHATSAPP',\n};\nconst rawChannel = (body.channel ?? body.source ?? '').toLowerCase();\nconst source     = channelMap[rawChannel] ?? 'OUTRO';\n\nreturn {\n  json: {\n    // Obrigatórios\n    tenantSlug: config.tenantSlug,\n    name:       fullName,\n\n    // Recomendados\n    email:   body.email   || null,\n    phone:   body.phone   || body.whatsapp || null,\n    company: body.company || null,\n    source,\n\n    // Contexto extra (vira nota)\n    ad_name: body.ad_name ?? body.adset_name ?? null,\n    form_id: body.form_id ?? null,\n    message: body.last_input_text ?? body.text ?? body.message ?? null,\n\n    // Atribuição\n    utm_source:   body.utm_source   ?? 'manychat',\n    utm_medium:   body.utm_medium   ?? rawChannel,\n    utm_campaign: body.utm_campaign ?? body.ad_name ?? null,\n\n    // Metadados (passa pro próximo nó, não vai pro CRM)\n    _meta: {\n      subscriber_id:      body.subscriber_id      ?? null,\n      instagram_username: body.ig_username        ?? null,\n      manychat_user_url:  body.user_url           ?? null,\n    },\n  },\n};\n"
+      },
+      "id": "transform",
+      "name": "Transformar (Manychat → CRM)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config (edite aqui)').first().json.crmUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Token",
+              "value": "={{ $('Config (edite aqui)').first().json.apiToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tenantSlug\": \"{{$json.tenantSlug}}\",\n  \"name\":       \"{{$json.name}}\",\n  \"email\":      {{ JSON.stringify($json.email) }},\n  \"phone\":      {{ JSON.stringify($json.phone) }},\n  \"company\":    {{ JSON.stringify($json.company) }},\n  \"source\":     \"{{$json.source}}\",\n  \"ad_name\":    {{ JSON.stringify($json.ad_name) }},\n  \"form_id\":    {{ JSON.stringify($json.form_id) }},\n  \"message\":    {{ JSON.stringify($json.message) }},\n  \"utm_source\": {{ JSON.stringify($json.utm_source) }},\n  \"utm_medium\": {{ JSON.stringify($json.utm_medium) }},\n  \"utm_campaign\": {{ JSON.stringify($json.utm_campaign) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "post-crm",
+      "name": "POST → CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"leadId\": $json.leadId ?? null }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond",
+      "name": "Resposta (200 OK)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1080, 300]
+    }
+  ],
+  "connections": {
+    "Webhook (Manychat)": {
+      "main": [
+        [
+          {
+            "node": "Config (edite aqui)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config (edite aqui)": {
+      "main": [
+        [
+          {
+            "node": "Transformar (Manychat → CRM)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transformar (Manychat → CRM)": {
+      "main": [
+        [
+          {
+            "node": "POST → CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST → CRM": {
+      "main": [
+        [
+          {
+            "node": "Resposta (200 OK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    {
+      "name": "crm-tudomudou",
+      "id": "crm-tudomudou"
+    }
+  ]
+}
