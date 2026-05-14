@@ -28,13 +28,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { rateLimit } from "@/lib/rateLimit";
+import { verifyPublicApiToken } from "@/lib/publicApiToken";
 import { z } from "zod";
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
 const corsHeaders = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Token",
 };
 
 export async function OPTIONS() {
@@ -48,7 +49,13 @@ const publicLeadSchema = z.object({
   email:      z.string().email().max(200).optional().or(z.literal("")),
   phone:      z.string().max(30).optional().or(z.literal("")),
   company:    z.string().max(200).optional().or(z.literal("")),
-  source:     z.enum(["WEBSITE", "FACEBOOK", "INSTAGRAM", "WHATSAPP", "OUTRO"]).default("WEBSITE"),
+  source:     z.enum(["WEBSITE", "FACEBOOK", "INSTAGRAM", "WHATSAPP", "LINKEDIN", "OUTRO"]).default("WEBSITE"),
+  // Token opcional — quando presente, autentica server-to-server (n8n/Make/Zapier)
+  // e libera fontes não-WEBSITE
+  token: z.string().length(32).optional(),
+  // Campo livre para anúncio/origem específica
+  ad_name:  z.string().max(300).optional(),
+  form_id:  z.string().max(100).optional(),
   // Campos extras opcionais — viram nota
   message:    z.string().max(2000).optional(),
   utm_source:   z.string().max(200).optional(),
@@ -88,6 +95,10 @@ export async function POST(req: Request) {
 
   const d = parsed.data;
 
+  // Token também pode vir no header (n8n geralmente usa header)
+  const headerToken = req.headers.get("x-api-token") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  const token       = d.token ?? headerToken ?? null;
+
   // Busca tenant pelo slug
   const tenant = await prisma.tenant.findUnique({
     where: { slug: d.tenantSlug },
@@ -97,6 +108,17 @@ export async function POST(req: Request) {
   if (!tenant || !tenant.active) {
     // Retorna 200 mesmo assim (não vazar existência de tenants)
     return NextResponse.json({ ok: true }, { headers: corsHeaders });
+  }
+
+  // Fontes não-WEBSITE exigem token válido (integrações server-to-server)
+  const isServerSource = d.source !== "WEBSITE";
+  if (isServerSource) {
+    if (!token || !verifyPublicApiToken(tenant.id, token)) {
+      return NextResponse.json(
+        { error: "Token inválido ou ausente para source diferente de WEBSITE" },
+        { status: 401, headers: corsHeaders },
+      );
+    }
   }
 
   // Cria lead
@@ -113,8 +135,19 @@ export async function POST(req: Request) {
     select: { id: true, name: true },
   });
 
-  // Nota com contexto (mensagem + UTMs)
-  const noteParts: string[] = ["[Capturado via formulário do site]"];
+  // Nota com contexto (mensagem + UTMs + dados de campanha)
+  const sourceLabel = {
+    WEBSITE:   "formulário do site",
+    FACEBOOK:  "Facebook Lead Ads (via integração)",
+    INSTAGRAM: "Instagram Lead Ads (via integração)",
+    WHATSAPP:  "WhatsApp (via integração)",
+    LINKEDIN:  "LinkedIn (via integração)",
+    OUTRO:     "integração externa",
+  }[d.source] ?? "integração externa";
+
+  const noteParts: string[] = [`[Capturado via ${sourceLabel}]`];
+  if (d.ad_name)       noteParts.push(`Anúncio: ${d.ad_name}`);
+  if (d.form_id)       noteParts.push(`Form ID: ${d.form_id}`);
   if (d.message)       noteParts.push(`Mensagem: ${d.message}`);
   if (d.utm_source)    noteParts.push(`UTM Source: ${d.utm_source}`);
   if (d.utm_medium)    noteParts.push(`UTM Medium: ${d.utm_medium}`);

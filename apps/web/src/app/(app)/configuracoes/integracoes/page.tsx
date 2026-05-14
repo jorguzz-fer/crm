@@ -2,74 +2,57 @@ import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { MetaIntegration } from "./MetaIntegration";
+import { headers } from "next/headers";
+import { generatePublicApiToken } from "@/lib/publicApiToken";
+import { N8nIntegration } from "./N8nIntegration";
 import { WebsiteSnippet } from "./WebsiteSnippet";
 import { CsvImport } from "./CsvImport";
 
 export const metadata: Metadata = { title: "Integrações" };
 
-interface Props {
-  searchParams: Promise<{ success?: string; error?: string }>;
-}
-
-export default async function IntegracoesPage({ searchParams }: Props) {
+export default async function IntegracoesPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
   const tenantId = session.user.tenantId;
-  const isAdmin  = ["SUPERADMIN", "ADMIN"].includes(session.user.role);
-  const params   = await searchParams;
 
-  const [tenant, metaPages] = await Promise.all([
-    prisma.tenant.findUnique({
-      where:  { id: tenantId },
-      select: { slug: true, name: true },
-    }),
-    prisma.metaLeadForm.findMany({
-      where:   { tenantId },
-      select:  { id: true, pageId: true, pageName: true, active: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
-
+  const tenant = await prisma.tenant.findUnique({
+    where:  { id: tenantId },
+    select: { slug: true, name: true },
+  });
   if (!tenant) redirect("/dashboard");
+
+  // URL absoluta do webhook (usa o host real do request)
+  const h          = await headers();
+  const proto      = h.get("x-forwarded-proto") ?? "https";
+  const host       = h.get("host") ?? "localhost:3000";
+  const origin     = `${proto}://${host}`;
+  const webhookUrl = `${origin}/api/public/leads`;
+
+  const apiToken = generatePublicApiToken(tenantId);
 
   return (
     <div className="max-w-3xl space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Integrações</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Configure a captura automática de leads de diferentes canais.
+          Conecte canais externos para capturar leads automaticamente.
         </p>
       </div>
 
-      {/* Feedback de OAuth */}
-      {params.success && (
-        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-300">
-          <span>✅</span>
-          <span>
-            {Number(params.success)} página(s) do Facebook conectada(s) com sucesso!
-          </span>
-        </div>
-      )}
-      {params.error && (
-        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
-          <span>⚠️</span>
-          <span>{decodeURIComponent(params.error)}</span>
-        </div>
-      )}
-
-      {/* Meta Lead Ads */}
+      {/* n8n / Make / Zapier */}
       <section className="space-y-4">
         <div className="border-b border-border pb-2">
-          <h2 className="text-base font-semibold">Meta Lead Ads</h2>
+          <h2 className="text-base font-semibold">Captura via n8n / Make / Zapier</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Recebe leads automaticamente de anúncios no Facebook e Instagram.
+            Use seu n8n (ou Make/Zapier) como ponte entre Facebook/Instagram Lead Ads,
+            LinkedIn, e qualquer outra fonte → CRM.
           </p>
         </div>
-        <MetaIntegration
-          pages={metaPages}
-          isAdmin={isAdmin}
+        <N8nIntegration
+          webhookUrl={webhookUrl}
+          apiToken={apiToken}
+          tenantSlug={tenant.slug}
         />
       </section>
 
@@ -78,7 +61,7 @@ export default async function IntegracoesPage({ searchParams }: Props) {
         <div className="border-b border-border pb-2">
           <h2 className="text-base font-semibold">Formulário do site / Landing page</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Cole o snippet no seu site para capturar leads automaticamente.
+            Cole o snippet no seu site para capturar leads do formulário diretamente.
           </p>
         </div>
         <WebsiteSnippet tenantSlug={tenant.slug} />
@@ -89,7 +72,8 @@ export default async function IntegracoesPage({ searchParams }: Props) {
         <div className="border-b border-border pb-2">
           <h2 className="text-base font-semibold">Importar CSV</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Importe uma base de leads existente. Máx. 5.000 linhas por arquivo.
+            Importe uma base existente. Útil também como fallback do Meta Lead Center
+            (exporte os leads de lá e suba aqui). Máx. 5.000 linhas por arquivo.
           </p>
         </div>
         <CsvImport />

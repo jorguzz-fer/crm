@@ -15,13 +15,10 @@ export const PUBLIC_PATHS = [
   "/api/webhooks",
   // Extensão Chrome usa Bearer token — sem cookie JWT
   "/api/extension",
-  // Formulários públicos de sites/landing pages (sem auth, rate-limited por IP)
+  // Formulários públicos e integrações server-to-server (n8n/Make/Zapier)
+  // Autenticado por tenantSlug + token HMAC por tenant (gerado a partir do AUTH_SECRET).
   "/api/public",
-  // OAuth callback do Meta — chega via redirect do Facebook (cookie de sessão é preservado)
-  "/api/integrations/meta/callback",
-  // Data Deletion Callback obrigatório pelo Meta (chamado pelo servidor do Facebook)
-  "/api/integrations/meta/data-deletion",
-  // Página pública de status de exclusão de dados (usuário acompanha pelo código)
+  // Página pública de status de exclusão de dados (acessada via código de protocolo)
   "/dados",
   "/privacidade",
   "/termos",
