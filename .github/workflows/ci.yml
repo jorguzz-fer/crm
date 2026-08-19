@@ -61,6 +61,10 @@ jobs:
 
       - name: Prisma validate
         run: node_modules/.bin/prisma validate --schema=packages/db/prisma/schema.prisma
+        env:
+          # O schema referencia env() — validate falha sem essas vars
+          DATABASE_URL: "postgresql://user:pass@localhost:5432/db"
+          DIRECT_DATABASE_URL: "postgresql://user:pass@localhost:5432/db"
 
       - name: Unit tests
         run: |

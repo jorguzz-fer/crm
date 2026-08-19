@@ -29,7 +29,10 @@ jobs:
           --health-retries 10
 
     steps:
+      # fetch-depth: 0 — `turbo --filter=...[origin/main]` precisa da ref do base
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 

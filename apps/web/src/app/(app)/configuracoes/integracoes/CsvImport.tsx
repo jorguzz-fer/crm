@@ -145,9 +145,9 @@ export function CsvImport() {
         <div className="font-mono bg-muted rounded p-2 text-[11px] overflow-x-auto">
           nome,email,telefone,empresa,origem,status,observacao
           <br />
-          "João Silva","joao@email.com","11999999999","Empresa X","WEBSITE","NOVO","Interesse no curso"
+          {'"João Silva","joao@email.com","11999999999","Empresa X","WEBSITE","NOVO","Interesse no curso"'}
           <br />
-          "Maria Souza","maria@email.com","","","INDICACAO","QUALIFICADO",""
+          {'"Maria Souza","maria@email.com","","","INDICACAO","QUALIFICADO",""'}
         </div>
         <p className="text-muted-foreground">
           Origens aceitas: WEBSITE, FACEBOOK, INSTAGRAM, WHATSAPP, LINKEDIN, INDICACAO, EVENTO, COLD_OUTREACH, OUTRO

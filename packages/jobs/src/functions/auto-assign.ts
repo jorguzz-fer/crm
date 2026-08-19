@@ -20,7 +20,7 @@ export async function handleAutoAssign(data: AssignInput): Promise<AssignResult>
   const { tenantId, leadId } = data;
 
   const members = await prisma.membership.findMany({
-    where: { tenantId, acceptingLeads: true, role: { in: SELLER_ROLES } },
+    where: { tenantId, acceptingLeads: true, role: { in: [...SELLER_ROLES] } },
     select: { userId: true, maxLeads: true, user: { select: { id: true, name: true, active: true } } },
   });
 
@@ -68,7 +68,7 @@ export async function handleReAssignHot(data: AssignInput): Promise<ReAssignResu
   if (lead?.scoreLabel !== "hot") return { skipped: true };
 
   const members = await prisma.membership.findMany({
-    where: { tenantId, acceptingLeads: true, role: { in: SELLER_ROLES } },
+    where: { tenantId, acceptingLeads: true, role: { in: [...SELLER_ROLES] } },
     select: { userId: true, user: { select: { id: true, active: true } } },
   });
 

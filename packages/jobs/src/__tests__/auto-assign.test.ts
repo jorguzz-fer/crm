@@ -49,6 +49,7 @@ describe("handleAutoAssign", () => {
 
     const result = await handleAutoAssign({ tenantId: TENANT, leadId: "lead-1" });
 
+    if (result.skipped) throw new Error("esperava atribuição, veio skipped");
     expect(result.assignedTo).toBe("u2");
     expect(prisma.lead.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ assignedTo: "u2" }) }),
@@ -68,6 +69,7 @@ describe("handleAutoAssign", () => {
 
     const result = await handleAutoAssign({ tenantId: TENANT, leadId: "lead-2" });
 
+    if (result.skipped) throw new Error("esperava atribuição, veio skipped");
     expect(result.assignedTo).toBe("u2");
   });
 
@@ -81,6 +83,7 @@ describe("handleAutoAssign", () => {
 
     const result = await handleAutoAssign({ tenantId: TENANT, leadId: "lead-3" });
 
+    if (result.skipped) throw new Error("esperava atribuição, veio skipped");
     expect(result.assignedTo).toBe("u2");
   });
 
@@ -147,6 +150,7 @@ describe("handleReAssignHot", () => {
 
     const result = await handleReAssignHot({ tenantId: TENANT, leadId: "lead-1" });
 
+    if (result.skipped) throw new Error("esperava reatribuição, veio skipped");
     expect(result.reassigned).toBe(true);
     expect(result.assignedTo).toBe("u2");
   });

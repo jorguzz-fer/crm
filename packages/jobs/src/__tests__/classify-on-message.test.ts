@@ -49,12 +49,13 @@ const warmClassification = {
   recommendedNextAction: "send_education" as const,
 };
 
+// O handler só lê fromMe/body/timestamp — o mock não precisa da linha completa do Prisma
 function makeMessages(count: number, fromMe = false) {
   return Array.from({ length: count }, (_, i) => ({
     fromMe,
     body: `mensagem ${i + 1}`,
     timestamp: new Date(Date.now() + i * 60_000),
-  }));
+  })) as never;
 }
 
 describe("handleClassifyOnMessage", () => {
@@ -83,7 +84,7 @@ describe("handleClassifyOnMessage", () => {
     vi.mocked(prisma.whatsAppMessage.findMany).mockResolvedValueOnce([
       { fromMe: false, body: null, timestamp: new Date() },
       { fromMe: false, body: null, timestamp: new Date() },
-    ]);
+    ] as never);
 
     const result = await handleClassifyOnMessage(baseEvent);
     expect(result.skipped).toBe(true);

@@ -21,13 +21,28 @@ const nav = [
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  /** Slug do tenant logado — exibido ao lado do logo para identificar a conta. */
+  tenantSlug?: string | null;
+  /** Nome do tenant, usado como tooltip do slug. */
+  tenantName?: string | null;
+}
+
+export function Sidebar({ tenantSlug, tenantName }: SidebarProps = {}) {
   const pathname = usePathname();
 
   return (
     <aside className="flex w-56 flex-col border-r border-border bg-card">
-      <div className="flex h-14 items-center border-b border-border px-4">
+      <div className="flex h-14 items-center gap-2 border-b border-border px-4">
         <span className="text-base font-bold tracking-tight">CRM</span>
+        {tenantSlug && (
+          <span
+            title={tenantName ? `${tenantName} (${tenantSlug})` : tenantSlug}
+            className="min-w-0 truncate rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+          >
+            {tenantSlug}
+          </span>
+        )}
       </div>
       <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
         {nav.map(({ href, label, icon: Icon }) => {
