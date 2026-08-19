@@ -135,6 +135,29 @@ export async function POST(req: Request) {
     select: { id: true, name: true },
   });
 
+  // Auto-converter lead → oportunidade no pipeline padrão
+  try {
+    const defaultPipeline = await prisma.pipeline.findFirst({
+      where: { tenantId: tenant.id, isDefault: true },
+      select: { id: true, stages: { orderBy: { order: "asc" }, take: 1, select: { id: true } } },
+    });
+    if (defaultPipeline && defaultPipeline.stages.length > 0) {
+      const firstStage = defaultPipeline.stages[0];
+      await prisma.opportunity.create({
+        data: {
+          tenantId: tenant.id,
+          pipelineId: defaultPipeline.id,
+          stageId: firstStage.id,
+          leadId: lead.id,
+          title: lead.name,
+        },
+      });
+    }
+  } catch {
+    // Conversão é best-effort — o lead já foi criado
+    console.error("Falha ao criar oportunidade automática para lead", lead.id);
+  }
+
   // Nota com contexto (mensagem + UTMs + dados de campanha)
   const sourceLabel = {
     WEBSITE:   "formulário do site",
