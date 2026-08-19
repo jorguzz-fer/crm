@@ -1,5 +1,4 @@
 import { prisma } from "@crm/db";
-import { NextResponse } from "next/server";
 import { requireRole, ROLES_MANAGE } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 

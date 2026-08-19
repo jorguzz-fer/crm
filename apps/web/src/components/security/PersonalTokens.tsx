@@ -21,7 +21,7 @@ export function PersonalTokens({ initialTokens }: Props) {
   const [copied, setCopied]          = useState(false);
 
   const [createState, createAction, createPending] = useActionState(createPersonalTokenAction, null);
-  const [revokeState, revokeAction, revokePending] = useActionState(revokePersonalTokenAction, null);
+  const [, revokeAction, revokePending] = useActionState(revokePersonalTokenAction, null);
 
   // Detecta token recém-criado e exibe
   if (createState && "token" in createState && createState.token !== newToken) {
