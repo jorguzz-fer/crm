@@ -1,5 +1,4 @@
 import { prisma } from "@crm/db";
-import { NextResponse } from "next/server";
 import { requireRole, ROLES_MANAGE } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
 
@@ -34,12 +33,17 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
 
   // Suporta os mesmos filtros da listagem
-  const q      = url.searchParams.get("q")?.trim() || "";
-  const status = url.searchParams.get("status") || "";
+  const q          = url.searchParams.get("q")?.trim() || "";
+  const status     = url.searchParams.get("status") || "";
+  const source     = url.searchParams.get("source") || "";
+  const assignedTo = url.searchParams.get("assignedTo") || "";
 
   const where = {
     tenantId,
     ...(status && VALID_LEAD_STATUSES.has(status) && { status: status as never }),
+    ...(source && SOURCE_LABEL[source] && { source: source as never }),
+    // "none" = leads sem responsável
+    ...(assignedTo && { assignedTo: assignedTo === "none" ? null : assignedTo }),
     ...(q && {
       OR: [
         { name:    { contains: q, mode: "insensitive" as const } },
@@ -85,7 +89,7 @@ export async function GET(req: Request) {
     userId: session.user.id,
     action: "lead.export",
     entity: "Lead",
-    meta: { count: leads.length, filters: { q, status } },
+    meta: { count: leads.length, filters: { q, status, source, assignedTo } },
   });
 
   return new Response("\uFEFF" + csv, {   // BOM para Excel reconhecer UTF-8
