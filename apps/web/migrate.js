@@ -96,6 +96,10 @@ const MIGRATIONS = [
     name: "0017_meta_lead_form",
     check: `SELECT COUNT(*)::int AS cnt FROM information_schema.tables WHERE table_schema='public' AND table_name='MetaLeadForm'`,
   },
+  {
+    name: "0018_platform_admin",
+    check: `SELECT COUNT(*)::int AS cnt FROM information_schema.columns WHERE table_schema='public' AND table_name='User' AND column_name='isPlatformAdmin'`,
+  },
 ];
 
 /**

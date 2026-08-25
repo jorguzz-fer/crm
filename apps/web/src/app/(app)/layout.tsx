@@ -5,20 +5,29 @@ import { Suspense } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { signOutAction } from "@/app/actions/auth";
+import { isPlatformAdmin } from "@/lib/platformAuth";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session) redirect("/login");
 
-  // Identificação do tenant logado (exibida ao lado do logo na sidebar)
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: session.user.tenantId },
-    select: { name: true, slug: true },
-  });
+  // Identificação do tenant logado (exibida ao lado do logo na sidebar) +
+  // acesso ao painel da plataforma, que é cross-tenant
+  const [tenant, platformAdmin] = await Promise.all([
+    prisma.tenant.findUnique({
+      where: { id: session.user.tenantId },
+      select: { name: true, slug: true },
+    }),
+    isPlatformAdmin(),
+  ]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar tenantSlug={tenant?.slug} tenantName={tenant?.name} />
+      <Sidebar
+        tenantSlug={tenant?.slug}
+        tenantName={tenant?.name}
+        showPlatformPanel={platformAdmin}
+      />
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-14 shrink-0 items-center justify-end border-b border-border bg-card px-6 gap-3">
           {/* Sino de notificações — Suspense para não bloquear o layout */}
