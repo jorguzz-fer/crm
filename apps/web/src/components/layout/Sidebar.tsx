@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Kanban, Building2, Contact, Calendar, CheckSquare, Activity, Settings, ChevronRight, MessageCircle, BarChart2, MapPin, Brain } from "lucide-react";
+import { LayoutDashboard, Users, Kanban, Building2, Contact, Calendar, CheckSquare, Activity, Settings, ChevronRight, MessageCircle, BarChart2, MapPin, Brain, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -26,10 +26,16 @@ interface SidebarProps {
   tenantSlug?: string | null;
   /** Nome do tenant, usado como tooltip do slug. */
   tenantName?: string | null;
+  /** Exibe o link do painel da plataforma (cross-tenant). */
+  showPlatformPanel?: boolean;
 }
 
-export function Sidebar({ tenantSlug, tenantName }: SidebarProps = {}) {
+export function Sidebar({ tenantSlug, tenantName, showPlatformPanel }: SidebarProps = {}) {
   const pathname = usePathname();
+
+  const items = showPlatformPanel
+    ? [...nav, { href: "/painel", label: "Painel da plataforma", icon: ShieldCheck }]
+    : nav;
 
   return (
     <aside className="flex w-56 flex-col border-r border-border bg-card">
@@ -45,7 +51,7 @@ export function Sidebar({ tenantSlug, tenantName }: SidebarProps = {}) {
         )}
       </div>
       <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
-        {nav.map(({ href, label, icon: Icon }) => {
+        {items.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (
             <Link

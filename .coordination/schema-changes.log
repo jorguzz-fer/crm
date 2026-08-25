@@ -15,3 +15,9 @@ Status: `proposed` → `reviewed` → `applied` → `rolled-back` (se necessári
 - WhatsAppInstance.provider: WaProvider @default(EVOLUTION)
 - WhatsAppInstance.wabaId/phoneNumberId/accessTokenEnc/webhookSecret (opcionais, Meta Cloud)
 Migration: não-breaking (novos campos opcionais com default)
+
+[2026-08-19] Painel da plataforma — apps/web
+- User.isPlatformAdmin: Boolean @default(false) + índice
+- Concede acesso ao /painel (cross-tenant), fora da hierarquia de Role, que é
+  sempre escopada a um tenant. Habilitado só via set-platform-admin.js.
+Migration: 0018_platform_admin — não-breaking (coluna nova com default false)
