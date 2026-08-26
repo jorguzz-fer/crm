@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { updateUserRoleAction, toggleUserActiveAction } from "@/app/actions/settings";
+import { updateUserRoleAction, toggleUserActiveAction, deleteUserAction } from "@/app/actions/settings";
 
 const ROLE_LABELS: Record<string, string> = {
   SUPERADMIN: "Super Admin",
@@ -86,6 +86,40 @@ function ToggleActiveButton({ user, currentUserId }: { user: User; currentUserId
   );
 }
 
+function DeleteButton({ user, currentUserId }: { user: User; currentUserId: string }) {
+  const [state, action, pending] = useActionState(deleteUserAction, null);
+  const isSelf = user.id === currentUserId;
+  if (isSelf) return null;
+
+  return (
+    <form
+      action={action}
+      onSubmit={(e) => {
+        // Excluir é irreversível e libera o e-mail para outro tenant
+        const ok = window.confirm(
+          `Excluir ${user.name} definitivamente?\n\n` +
+            `O e-mail ${user.email} volta a ficar livre para cadastro em outro cliente. ` +
+            `Leads e oportunidades dele ficam sem responsável, e o histórico de auditoria perde o autor.\n\n` +
+            `Para apenas tirar o acesso, use Desativar.`
+        );
+        if (!ok) e.preventDefault();
+      }}
+    >
+      <input type="hidden" name="userId" value={user.id} />
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-red-50 hover:text-destructive disabled:opacity-50"
+      >
+        {pending ? "..." : "Excluir"}
+      </button>
+      {state && "error" in state && (
+        <p className="mt-1 max-w-64 text-right text-[11px] text-destructive">{state.error}</p>
+      )}
+    </form>
+  );
+}
+
 export function UserTable({ users, currentUserId, isAdmin }: Props) {
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -129,8 +163,11 @@ export function UserTable({ users, currentUserId, isAdmin }: Props) {
                 </span>
               </td>
               {isAdmin && (
-                <td className="px-4 py-3 text-right">
-                  <ToggleActiveButton user={user} currentUserId={currentUserId} />
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-end gap-1">
+                    <ToggleActiveButton user={user} currentUserId={currentUserId} />
+                    <DeleteButton user={user} currentUserId={currentUserId} />
+                  </div>
                 </td>
               )}
             </tr>
