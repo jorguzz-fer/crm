@@ -13,6 +13,8 @@ const loginSchema = z.object({
   email:    z.string().email(),
   password: z.string().min(1),
   totp:     z.string().optional(),
+  // Preenchido quando o login veio pela porta de um cliente (/alumine)
+  tenantSlug: z.string().max(50).optional(),
 });
 
 const signupSchema = z.object({
@@ -37,9 +39,10 @@ export async function loginAction(
   formData: FormData
 ): Promise<ActionResult> {
   const raw = {
-    email:    formData.get("email"),
-    password: formData.get("password"),
-    totp:     formData.get("totp") ?? undefined,
+    email:      formData.get("email"),
+    password:   formData.get("password"),
+    totp:       formData.get("totp") ?? undefined,
+    tenantSlug: formData.get("tenantSlug") ?? undefined,
   };
 
   const parsed = loginSchema.safeParse(raw);
@@ -47,9 +50,35 @@ export async function loginAction(
     return { error: "Dados inválidos" };
   }
 
-  const email    = parsed.data.email.toLowerCase();
-  const password = parsed.data.password;
-  const totp     = parsed.data.totp;
+  const email      = parsed.data.email.toLowerCase();
+  const password   = parsed.data.password;
+  const totp       = parsed.data.totp;
+  const tenantSlug = parsed.data.tenantSlug;
+
+  // Login pela porta do cliente: o e-mail precisa ser daquele ambiente.
+  // A checagem só acontece depois de confirmar a senha — assim a mensagem
+  // específica nunca revela a existência de um e-mail para quem não a sabe.
+  if (tenantSlug) {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        passwordHash: true,
+        active: true,
+        tenant: { select: { slug: true } },
+      },
+    });
+
+    if (
+      user?.active &&
+      user.passwordHash &&
+      user.tenant.slug !== tenantSlug &&
+      (await bcrypt.compare(password, user.passwordHash))
+    ) {
+      return {
+        error: `Este e-mail não pertence ao ambiente "${tenantSlug}". Entre pelo endereço do seu ambiente ou pela página de login geral.`,
+      };
+    }
+  }
 
   // Pré-check: se o usuário tem 2FA ativo e não enviou código, verificamos a senha
   // e pedimos o TOTP antes de acionar o signIn (evita revelar se o email existe)

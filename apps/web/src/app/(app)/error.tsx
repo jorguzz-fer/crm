@@ -12,6 +12,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
+import Link from "next/link";
 
 export default function AppError({
   error,
@@ -60,12 +61,12 @@ export default function AppError({
         >
           Tentar novamente
         </button>
-        <a
+        <Link
           href="/dashboard"
           className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
         >
           Ir para Dashboard
-        </a>
+        </Link>
       </div>
     </div>
   );

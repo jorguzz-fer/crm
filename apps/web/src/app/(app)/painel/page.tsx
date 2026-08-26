@@ -1,4 +1,5 @@
 import { prisma } from "@crm/db";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { Building2, Search, Users, UserCircle2 } from "lucide-react";
@@ -226,8 +227,15 @@ export default async function PainelPage({ searchParams }: Props) {
                       </div>
                       <p className="text-xs text-muted-foreground md:hidden">{tenant.slug}</p>
                     </td>
-                    <td className="px-4 py-3 hidden md:table-cell font-mono text-xs text-muted-foreground">
-                      {tenant.slug}
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      {/* Porta do cliente — link para entregar/bookmarkar */}
+                      <Link
+                        href={`/${tenant.slug}`}
+                        title={`Abrir a porta de entrada de ${tenant.name}`}
+                        className="font-mono text-xs text-muted-foreground hover:text-primary"
+                      >
+                        /{tenant.slug}
+                      </Link>
                     </td>
                     <td className="px-4 py-3">
                       {isPlan(tenant.plan) ? PLAN_LABELS[tenant.plan] : tenant.plan}

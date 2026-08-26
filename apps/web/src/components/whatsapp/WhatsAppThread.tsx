@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
+import Link from "next/link";
 import { Send, MessageCircle, Loader2, Phone } from "lucide-react";
 import { sendWhatsAppMessageAction } from "@/app/actions/whatsapp";
 
@@ -97,9 +98,9 @@ export function WhatsAppThread({ conversations, waConnected }: Props) {
         {!waConnected && (
           <p className="text-xs text-muted-foreground">
             Configure o WhatsApp em{" "}
-            <a href="/configuracoes/whatsapp" className="text-primary hover:underline">
+            <Link href="/configuracoes/whatsapp" className="text-primary hover:underline">
               Configurações → WhatsApp
-            </a>
+            </Link>
             .
           </p>
         )}
@@ -197,9 +198,9 @@ export function WhatsAppThread({ conversations, waConnected }: Props) {
           {!waConnected ? (
             <p className="text-xs text-muted-foreground text-center py-1">
               WhatsApp desconectado —{" "}
-              <a href="/configuracoes/whatsapp" className="text-primary hover:underline">
+              <Link href="/configuracoes/whatsapp" className="text-primary hover:underline">
                 reconectar
-              </a>
+              </Link>
             </p>
           ) : (
             <form onSubmit={handleSend} className="flex gap-2">
