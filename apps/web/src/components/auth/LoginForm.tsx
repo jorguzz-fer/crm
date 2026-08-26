@@ -10,9 +10,12 @@ import { ShieldCheck } from "lucide-react";
 export function LoginForm({
   signupSuccess,
   urlError,
+  tenantSlug,
 }: {
   signupSuccess?: boolean;
   urlError?: string;
+  /** Preenchido na porta de um cliente (/alumine) — vincula o login ao ambiente. */
+  tenantSlug?: string;
 }) {
   const [state, action, pending] = useActionState(loginAction, null);
   const [totpRequired, setTotpRequired] = useState(false);
@@ -51,6 +54,8 @@ export function LoginForm({
       )}
 
       <form action={action} className="space-y-4">
+        {tenantSlug && <input type="hidden" name="tenantSlug" value={tenantSlug} />}
+
         <div className="space-y-1">
           <label htmlFor="email" className="text-sm font-medium">
             E-mail
@@ -143,12 +148,14 @@ export function LoginForm({
             Continuar com Google
           </button>
 
-          <p className="text-center text-sm text-muted-foreground">
-            Não tem conta?{" "}
-            <Link href="/signup" className="font-medium text-primary underline-offset-4 hover:underline">
-              Criar conta grátis
-            </Link>
-          </p>
+          {!tenantSlug && (
+            <p className="text-center text-sm text-muted-foreground">
+              Não tem conta?{" "}
+              <Link href="/signup" className="font-medium text-primary underline-offset-4 hover:underline">
+                Criar conta grátis
+              </Link>
+            </p>
+          )}
         </>
       )}
     </div>

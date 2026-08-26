@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from "next-auth";
+import { isTenantDoorPath } from "@/lib/routes";
 
 export const PUBLIC_PATHS = [
   "/",
@@ -41,9 +42,10 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const pathname = nextUrl.pathname;
-      const isPublic = PUBLIC_PATHS.some(
-        (p) => pathname === p || pathname.startsWith(p + "/")
-      );
+      const isPublic =
+        PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
+        // Porta do cliente (/alumine) — a página valida se o tenant existe
+        isTenantDoorPath(pathname);
       const isLoggedIn = !!auth;
 
       if (!isLoggedIn && !isPublic) return false;
