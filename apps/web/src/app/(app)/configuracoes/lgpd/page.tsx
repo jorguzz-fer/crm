@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { AuditLogSection } from "./AuditLogSection";
 import { DataRequestsSection } from "./DataRequestsSection";
@@ -70,9 +71,9 @@ export default async function LGPDPage() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <a href="/configuracoes" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <Link href="/configuracoes" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Configurações
-          </a>
+          </Link>
           <span className="text-muted-foreground">/</span>
           <span className="text-sm font-medium">LGPD</span>
         </div>
