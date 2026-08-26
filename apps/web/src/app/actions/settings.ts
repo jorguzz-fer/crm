@@ -8,6 +8,7 @@ import { logAudit } from "@/lib/audit";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { validatePassword } from "@/lib/password";
+import { describeDeletionBlockers, joinBlockers } from "@/lib/userDeletion";
 
 export type ActionState = { error: string } | { success: string } | null;
 
@@ -78,8 +79,21 @@ export async function inviteUserAction(
   const emailLower = email.toLowerCase();
   const tenantId = session!.user.tenantId;
 
-  const exists = await prisma.user.findUnique({ where: { email: emailLower }, select: { id: true } });
-  if (exists) return { error: "E-mail já cadastrado" };
+  // O e-mail é único na plataforma inteira, não por tenant — se já existe em
+  // outro cliente, o cadastro aqui falha. Diz isso em vez de "já cadastrado",
+  // sem revelar em qual cliente ele está.
+  const exists = await prisma.user.findUnique({
+    where: { email: emailLower },
+    select: { id: true, tenantId: true },
+  });
+  if (exists) {
+    return {
+      error:
+        exists.tenantId === tenantId
+          ? "E-mail já cadastrado neste cliente"
+          : "Este e-mail já está em uso em outro cliente da plataforma. Exclua o cadastro antigo (Configurações → Usuários do outro cliente) ou use outro e-mail.",
+    };
+  }
 
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await prisma.user.create({
@@ -211,4 +225,86 @@ export async function toggleUserActiveAction(
 
   revalidatePath("/configuracoes");
   return { success: `${user.name} ${user.active ? "desativado" : "reativado"}.` };
+}
+
+export async function deleteUserAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { session, error } = await requireRole(ROLES_ADMIN);
+  if (error) return { error: "Apenas administradores podem excluir usuários" };
+
+  const userId = formData.get("userId") as string;
+  if (!userId) return { error: "ID inválido" };
+
+  const tenantId = session!.user.tenantId;
+  if (userId === session!.user.id) return { error: "Você não pode excluir sua própria conta" };
+
+  const user = await prisma.user.findFirst({
+    where: { id: userId, tenantId },
+    select: { id: true, name: true, email: true, role: true },
+  });
+  if (!user) return { error: "Usuário não encontrado" };
+
+  // Nunca deixar o tenant sem ninguém que consiga administrar
+  if (user.role === "ADMIN" || user.role === "SUPERADMIN") {
+    const admins = await prisma.user.count({
+      where: { tenantId, active: true, role: { in: ["ADMIN", "SUPERADMIN"] } },
+    });
+    if (admins <= 1) {
+      return { error: "Este é o último administrador do tenant — promova outra pessoa antes de excluir." };
+    }
+  }
+
+  // Vínculos obrigatórios impedem o DELETE no banco: checa antes e explica
+  const [
+    activities, tasks, notes, visits, attachments, consents, dataRequests, transcriptions,
+    leads, opportunities,
+  ] = await Promise.all([
+    prisma.activity.count({ where: { userId } }),
+    prisma.task.count({ where: { assignedTo: userId } }),
+    prisma.note.count({ where: { userId } }),
+    prisma.visit.count({ where: { userId } }),
+    prisma.attachment.count({ where: { userId } }),
+    prisma.consentRecord.count({ where: { collectedBy: userId } }),
+    prisma.dataRequest.count({ where: { requestedBy: userId } }),
+    prisma.transcription.count({ where: { userId } }),
+    prisma.lead.count({ where: { assignedTo: userId } }),
+    prisma.opportunity.count({ where: { assignedTo: userId } }),
+  ]);
+
+  const blockers = describeDeletionBlockers({
+    activities, tasks, notes, visits, attachments, consents, dataRequests, transcriptions,
+  });
+
+  if (blockers.length > 0) {
+    return {
+      error: `Não dá para excluir ${user.name}: há ${joinBlockers(blockers)} vinculados a ele. Desative a conta em vez de excluir.`,
+    };
+  }
+
+  // Auditoria antes do delete — depois o userId da ação dele vira null (SetNull)
+  await logAudit({
+    tenantId,
+    userId: session!.user.id,
+    action: "user.delete",
+    entity: "User",
+    entityId: userId,
+    meta: { name: user.name, email: user.email, role: user.role, leads, opportunities },
+  });
+
+  await prisma.user.delete({ where: { id: userId } });
+
+  revalidatePath("/configuracoes");
+
+  const soltos = [
+    leads > 0 ? `${leads} lead${leads !== 1 ? "s" : ""}` : null,
+    opportunities > 0 ? `${opportunities} oportunidade${opportunities !== 1 ? "s" : ""}` : null,
+  ].filter(Boolean);
+
+  return {
+    success: soltos.length
+      ? `${user.name} excluído. ${joinBlockers(soltos as string[])} ficaram sem responsável.`
+      : `${user.name} excluído — o e-mail ${user.email} está livre novamente.`,
+  };
 }
