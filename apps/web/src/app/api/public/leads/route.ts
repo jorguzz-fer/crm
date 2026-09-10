@@ -22,6 +22,25 @@
  *   })
  *
  * Rate limit: 20 leads / 60s por IP para evitar spam.
+ *
+ * ── Deduplicação (opcional) ───────────────────────────────────────────────────
+ *
+ *   externalRef: "chatwoot:8:1042"   → o mesmo evento da origem reenviado não
+ *                                      vira outro lead. Sempre ativa.
+ *   dedupe:      "phone"             → a mesma pessoa em conversa nova
+ *                                      reaproveita o lead. **Opt-in.**
+ *
+ * O opt-in é deliberado: formulário de site e Lead Ads mandam cada submissão
+ * como um lead novo e devem continuar assim. Quem precisa de deduplicação é o
+ * webhook de conversa de WhatsApp, onde a mesma pessoa reabre conversa toda
+ * semana — e onde, sem isto, cada conversa virava um lead (era o problema
+ * registrado como pendência no workflow da Alumine).
+ *
+ * Em ambos os casos o lead reaproveitado **ganha a nota do novo contato** e
+ * **não abre outra oportunidade** no funil.
+ *
+ * Para ferramenta HTTP de agente de IA use `/api/public/agent/:slug/lead` —
+ * lá o corpo não pode carregar constante, então nem `tenantSlug` entra nele.
  */
 
 import { NextResponse } from "next/server";
@@ -29,6 +48,7 @@ import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { rateLimit } from "@/lib/rateLimit";
 import { verifyPublicApiToken } from "@/lib/publicApiToken";
+import { phoneVariants } from "@/lib/agentLead";
 import { z } from "zod";
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
@@ -56,6 +76,15 @@ const publicLeadSchema = z.object({
   // Campo livre para anúncio/origem específica
   ad_name:  z.string().max(300).optional(),
   form_id:  z.string().max(100).optional(),
+  // Referência do registro na origem ("<sistema>:<id>", ex. "chatwoot:8:1042").
+  // Torna o intake idempotente: o mesmo evento reenviado não vira outro lead.
+  externalRef: z.string().max(120).optional(),
+  // Deduplicação por telefone. **Opt-in**: os integradores que já existem
+  // (Manychat, Lead Ads, formulário do site) mandam cada submissão como um
+  // lead novo e continuam funcionando exatamente assim. Só quem pede
+  // `dedupe: "phone"` — o webhook de conversa de WhatsApp, onde a mesma
+  // pessoa reabre conversa toda semana — passa a reaproveitar o lead.
+  dedupe: z.enum(["none", "phone"]).default("none"),
   // Campos extras opcionais — viram nota
   message:    z.string().max(2000).optional(),
   utm_source:   z.string().max(200).optional(),
@@ -121,41 +150,82 @@ export async function POST(req: Request) {
     }
   }
 
-  // Cria lead
-  const lead = await prisma.lead.create({
-    data: {
-      tenantId: tenant.id,
-      name:    d.name.trim(),
-      email:   d.email?.trim() || null,
-      phone:   d.phone?.trim() || null,
-      company: d.company?.trim() || null,
-      source:  d.source as "WEBSITE" | "FACEBOOK" | "INSTAGRAM" | "WHATSAPP" | "OUTRO",
-      status:  "NOVO",
-    },
-    select: { id: true, name: true },
-  });
+  // ── Deduplicação ────────────────────────────────────────────────────────────
+  //
+  // Duas pistas, ambas exatas e ambas dentro do tenant:
+  //
+  //   1. `externalRef` — o mesmo evento da origem reenviado (retry do provider,
+  //      reexecução do workflow). Sempre ativa quando o campo vem.
+  //   2. telefone — a mesma pessoa numa conversa nova. Só com `dedupe: "phone"`.
+  //
+  // Não há casamento por nome: dois homônimos viram um lead só, com o histórico
+  // de duas pessoas misturado. Duplicata se resolve; isso não.
+  const phoneDigits = d.phone?.replace(/\D/g, "") ?? "";
 
-  // Auto-converter lead → oportunidade no pipeline padrão
-  try {
-    const defaultPipeline = await prisma.pipeline.findFirst({
-      where: { tenantId: tenant.id, isDefault: true },
-      select: { id: true, stages: { orderBy: { order: "asc" }, take: 1, select: { id: true } } },
+  let existente = d.externalRef
+    ? await prisma.lead.findFirst({
+        where: { tenantId: tenant.id, externalRef: d.externalRef, anonymizedAt: null },
+        select: { id: true, name: true },
+      })
+    : null;
+
+  if (!existente && d.dedupe === "phone" && phoneDigits) {
+    existente = await prisma.lead.findFirst({
+      where: {
+        tenantId: tenant.id,
+        phone: { in: phoneVariants(phoneDigits) },
+        anonymizedAt: null,
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true },
     });
-    if (defaultPipeline && defaultPipeline.stages.length > 0) {
-      const firstStage = defaultPipeline.stages[0];
-      await prisma.opportunity.create({
-        data: {
-          tenantId: tenant.id,
-          pipelineId: defaultPipeline.id,
-          stageId: firstStage.id,
-          leadId: lead.id,
-          title: lead.name,
-        },
+  }
+
+  // Lead existente ganha a nota de contexto do novo contato (mais abaixo), mas
+  // não vira outro registro nem outra oportunidade no funil.
+  const lead =
+    existente ??
+    (await prisma.lead.create({
+      data: {
+        tenantId: tenant.id,
+        name:    d.name.trim(),
+        email:   d.email?.trim() || null,
+        phone:   d.phone?.trim() || null,
+        company: d.company?.trim() || null,
+        source:  d.source as "WEBSITE" | "FACEBOOK" | "INSTAGRAM" | "WHATSAPP" | "OUTRO",
+        status:  "NOVO",
+        externalRef: d.externalRef ?? null,
+      },
+      select: { id: true, name: true },
+    }));
+
+  const duplicado = Boolean(existente);
+
+  // Auto-converter lead → oportunidade no pipeline padrão.
+  // Lead reaproveitado não abre outra oportunidade: o funil ficaria com o mesmo
+  // negócio em duplicidade a cada conversa nova da mesma pessoa.
+  if (!duplicado) {
+    try {
+      const defaultPipeline = await prisma.pipeline.findFirst({
+        where: { tenantId: tenant.id, isDefault: true },
+        select: { id: true, stages: { orderBy: { order: "asc" }, take: 1, select: { id: true } } },
       });
+      if (defaultPipeline && defaultPipeline.stages.length > 0) {
+        const firstStage = defaultPipeline.stages[0];
+        await prisma.opportunity.create({
+          data: {
+            tenantId: tenant.id,
+            pipelineId: defaultPipeline.id,
+            stageId: firstStage.id,
+            leadId: lead.id,
+            title: lead.name,
+          },
+        });
+      }
+    } catch {
+      // Conversão é best-effort — o lead já foi criado
+      console.error("Falha ao criar oportunidade automática para lead", lead.id);
     }
-  } catch {
-    // Conversão é best-effort — o lead já foi criado
-    console.error("Falha ao criar oportunidade automática para lead", lead.id);
   }
 
   // Nota com contexto (mensagem + UTMs + dados de campanha)
@@ -168,7 +238,13 @@ export async function POST(req: Request) {
     OUTRO:     "integração externa",
   }[d.source] ?? "integração externa";
 
-  const noteParts: string[] = [`[Capturado via ${sourceLabel}]`];
+  // Em lead reaproveitado o cabeçalho muda: não houve captura, houve um novo
+  // contato de alguém que já estava na base. Quem lê a nota precisa ver isso.
+  const noteParts: string[] = [
+    duplicado
+      ? `[Novo contato via ${sourceLabel}]`
+      : `[Capturado via ${sourceLabel}]`,
+  ];
   if (d.ad_name)       noteParts.push(`Anúncio: ${d.ad_name}`);
   if (d.form_id)       noteParts.push(`Form ID: ${d.form_id}`);
   if (d.message)       noteParts.push(`Mensagem: ${d.message}`);
@@ -228,12 +304,14 @@ export async function POST(req: Request) {
   if (sysUser) await logAudit({
     tenantId: tenant.id,
     userId:   sysUser.id,
-    action:   "lead.create",
+    action:   duplicado ? "lead.update" : "lead.create",
     entity:   "Lead",
     entityId: lead.id,
-    meta:     { name: lead.name, source: d.source, via: "public_api", ip },
+    meta:     { name: lead.name, source: d.source, via: "public_api", duplicado, ip },
   });
   // (se não há admin ainda no tenant, segue sem audit — lead já foi criado)
 
-  return NextResponse.json({ ok: true, leadId: lead.id }, { headers: corsHeaders });
+  // `duplicado` aparece na execução do n8n — é como se enxerga, em produção,
+  // que a deduplicação está funcionando em vez de silenciosamente não fazer nada.
+  return NextResponse.json({ ok: true, leadId: lead.id, duplicado }, { headers: corsHeaders });
 }

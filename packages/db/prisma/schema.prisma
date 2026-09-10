@@ -251,6 +251,11 @@ model Lead {
   assignedTo   String?
   companyId    String?
   anonymizedAt DateTime?
+  // Referência do registro na origem externa que criou o lead, no formato
+  // "<sistema>:<id>" — ex.: "chatwoot:8:1042" (conta 8, conversa 1042).
+  // Serve para o mesmo evento externo não virar dois leads e para um agente
+  // de IA reencontrar depois o lead da conversa em que ele está.
+  externalRef  String?
   // Scoring de temperatura (0-100)
   score        Int?       // 0-100; null = nunca calculado
   scoreLabel   String?    // "frio" | "morno" | "quente"
@@ -274,6 +279,8 @@ model Lead {
   @@index([tenantId, status])
   @@index([tenantId, assignedTo])
   @@index([tenantId, createdAt])
+  @@index([tenantId, externalRef])
+  @@index([tenantId, phone])
 }
 
 model Company {
