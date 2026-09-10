@@ -21,6 +21,7 @@ const CHECKS = [
   { name: "0008_visits",            sql: `SELECT COUNT(*)::int AS cnt FROM information_schema.tables WHERE table_schema='public' AND table_name='Visit'` },
   { name: "0009_lead_scoring",      sql: `SELECT COUNT(*)::int AS cnt FROM information_schema.columns WHERE table_schema='public' AND table_name='Lead' AND column_name='score'` },
   { name: "0010_whatsapp_provider", sql: `SELECT COUNT(*)::int AS cnt FROM information_schema.columns WHERE table_schema='public' AND table_name='WhatsAppInstance' AND column_name='provider'` },
+  { name: "0019_lead_external_ref", sql: `SELECT COUNT(*)::int AS cnt FROM information_schema.columns WHERE table_schema='public' AND table_name='Lead' AND column_name='externalRef'` },
 ];
 
 export async function GET(req: Request) {
