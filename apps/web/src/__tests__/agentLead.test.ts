@@ -109,6 +109,28 @@ describe("sanitizeAgentText", () => {
   });
 });
 
+describe("placeholder não resolvido — o modelo copia o que vê", () => {
+  // Aconteceu em 2026-09-10: o prompt exibia `{{conversation_id}}` literal
+  // (a plataforma não resolve essa variável), a Wendy copiou para o argumento,
+  // e o CRM gravou "Conversa: conversa {{conversation_id}}" e criou um lead
+  // duplicado. Placeholder que chega até aqui é ausência de dado, nunca dado.
+  it("sanitizeAgentText devolve null para valor com {{…}}", () => {
+    expect(sanitizeAgentText("{{conversation_id}}", 100)).toBeNull();
+    expect(sanitizeAgentText("conversa {{conversation_id}}", 100)).toBeNull();
+    expect(sanitizeAgentText("{{ contact_phone }}", 100)).toBeNull();
+  });
+
+  it("safeLeadName não aceita placeholder como nome", () => {
+    expect(safeLeadName("{{contact_name}}", "11999998888")).toBe("WhatsApp 11999998888");
+    expect(safeLeadName("{{contact_name}}", null)).toBe("Lead sem nome");
+  });
+
+  it("chaves simples ou texto normal continuam passando", () => {
+    expect(sanitizeAgentText("quer o CARE+ {promo}", 100)).toBe("quer o CARE+ {promo}");
+    expect(safeLeadName("Maria {Silva}", null)).toBe("Maria {Silva}");
+  });
+});
+
 describe("parseHeadcount", () => {
   it("aceita número", () => {
     expect(parseHeadcount(40)).toBe(40);

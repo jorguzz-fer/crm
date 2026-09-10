@@ -49,8 +49,17 @@ const PLACEHOLDERS = new Set([
   "whatsapp da conversa",
 ]);
 
+/**
+ * Variável de template que a plataforma do agente não resolveu, ex.
+ * `{{conversation_id}}`. Chegou até aqui porque o prompt a exibia literal e o
+ * modelo copiou o que viu (2026-09-10: virou "Conversa: conversa
+ * {{conversation_id}}" numa nota e um lead duplicado). Qualquer valor que
+ * contenha isso é ausência de dado, nunca dado.
+ */
+const UNRESOLVED_TEMPLATE = /\{\{[\s\S]*?\}\}/;
+
 function isPlaceholder(value: string): boolean {
-  return PLACEHOLDERS.has(value.trim().toLowerCase());
+  return PLACEHOLDERS.has(value.trim().toLowerCase()) || UNRESOLVED_TEMPLATE.test(value);
 }
 
 /** Reduz um telefone ao que ele tem de estável: os dígitos. */
@@ -114,7 +123,7 @@ export function sanitizeAgentText(
 ): string | null {
   if (!value) return null;
   const clean = String(value).replace(/\s+/g, " ").trim();
-  if (!clean) return null;
+  if (!clean || UNRESOLVED_TEMPLATE.test(clean)) return null;
   return clean.slice(0, max);
 }
 

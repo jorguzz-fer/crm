@@ -34,7 +34,7 @@ export function AgentIntegration({ agentUrl, apiToken }: Props) {
       resumo: "o que o vendedor precisa saber antes de ligar",
       proximo_passo: "o que ficou combinado",
       situacao: "qualificado | em_contato | desqualificado",
-      conversa_id: "o id desta conversa",
+      telefone: "o telefone desta conversa, copiado das informações do sistema",
     },
     null,
     2,
@@ -50,10 +50,10 @@ export function AgentIntegration({ agentUrl, apiToken }: Props) {
     ["resumo", "contexto da conversa (vira nota)"],
     ["proximo_passo", "o que ficou combinado (vira nota)"],
     ["situacao", "qualificado · em_contato · desqualificado"],
-    ["conversa_id", "reencontra o lead que o webhook já criou"],
+    ["telefone", "a chave — reencontra o lead que o webhook já criou; o agente copia do telefone da conversa que o prompt expõe"],
     ["email", "só entra se tiver cara de e-mail"],
     ["empresa", "razão social / nome da empresa"],
-    ["telefone", "opcional — o agente normalmente não sabe o número"],
+    ["conversa_id", "reserva — só se a plataforma expuser o id da conversa"],
     ["agente", "nome do agente, aparece no cabeçalho da nota"],
   ];
 

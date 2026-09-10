@@ -188,22 +188,32 @@ para o corpo, a integração volta a dar 400.
 | `resumo` | o que o vendedor precisa saber antes de ligar |
 | `proximo_passo` | o que ficou combinado |
 | `situacao` | `qualificado` · `em_contato` · `desqualificado` |
-| `conversa_id` | reencontra o lead que o webhook já criou |
-| `email`, `empresa`, `telefone`, `agente` | opcionais |
+| `telefone` | **a chave**: reencontra o lead que o webhook já criou. A Wendy copia de "Telefone desta conversa" no prompt |
+| `email`, `empresa`, `conversa_id`, `agente` | opcionais |
 
-Todos são opcionais, mas precisa chegar **pelo menos um** entre `nome`,
-`telefone` e `conversa_id` — sem nenhum não há o que registrar nem o que
-reencontrar.
+Precisa chegar **pelo menos um** entre `telefone`, `conversa_id` e `nome` — sem
+nenhum não há o que registrar nem o que reencontrar. Na prática é o `telefone`;
+os outros dois são reserva.
 
 ### Como as duas pistas se encontram
 
-O n8n grava `externalRef = "chatwoot:8:1042"`. A Wendy manda
-`conversa_id: "1042"`, e o CRM casa pelo sufixo `:1042` — assim ela não precisa
-saber o id da conta, que ela não teria como enviar.
+**Pelo telefone.** O n8n grava o lead com o número do payload do Chatwoot
+(`5511989940404`); a Wendy manda o `telefone` que o prompt dela resolve em
+`{{contact_phone}}` (`+5511989940404`); o CRM casa os dois formatos
+(`phoneVariants`: com e sem `55`). É o mesmo mecanismo pelo qual a
+`verificar_status_assinatura` já recebe o telefone da conversa.
 
-Não havendo `conversa_id`, o CRM tenta pelo telefone. **Não há casamento por
-nome**: dois "João Silva" no mesmo dia virariam um lead só, com o histórico de
-duas pessoas misturado. Duplicata se resolve depois; isso não.
+**Por que não o id da conversa** (o desenho original): testado em 10/09, a
+plataforma **não resolve `{{conversation_id}}`** — o prompt exibia o texto
+literal, a Wendy copiou fielmente para o argumento, o CRM não achou nada e
+criou um lead duplicado sem telefone. O `conversa_id` continua aceito (casa
+por sufixo com o `externalRef` do n8n) para o dia em que a plataforma expuser
+o id; hoje ela não expõe. E o CRM passou a **recusar qualquer valor com
+`{{…}}`**: placeholder que chega do modelo é ausência de dado, não dado.
+
+**Não há casamento por nome**: dois "João Silva" no mesmo dia virariam um lead
+só, com o histórico de duas pessoas misturado. Duplicata se resolve depois;
+isso não.
 
 Se nada casar, a ferramenta **cria** o lead com o que a Wendy sabe. É a rede
 para o dia em que o n8n estiver fora.
@@ -233,7 +243,7 @@ curl -X POST https://crm.tudomudou.com.br/api/public/agent/wowmais/lead \
   -H "Content-Type: application/json" \
   -H "x-api-token: SEU_TOKEN" \
   -d '{"nome":"Teste Wendy","persona":"b2b","interesse":"CARE+ com NR-1",
-       "vidas":40,"situacao":"qualificado","conversa_id":"999999","agente":"Wendy"}'
+       "vidas":40,"situacao":"qualificado","telefone":"+5511999998888","agente":"Wendy"}'
 # → {"ok":true,"registrado":true,"lead_id":"<o mesmo id>","criado":false}
 ```
 
@@ -259,23 +269,24 @@ Mande uma mensagem de um número que nunca falou com a Wendy. Em até alguns
 segundos deve nascer um lead com o telefone certo. Confira a execução do
 workflow — o nó "Resultado legível" mostra o que foi enviado.
 
-### 4.3 ⚠️ Conferir o id da conversa nas duas pontas
+### 4.3 Conferir a chave de correlação
 
-**Este é o passo que não dá para pular.** A Wendy preenche `conversa_id` a
-partir do `{{conversation_id}}` que o prompt dela resolve; o n8n usa o `id` da
-conversa no payload do Chatwoot. **Não está verificado que são o mesmo número** —
-o Chatwoot tem `id` (global) e `display_id` (por conta).
+Numa conversa real que chegue ao interesse, abra nos Logs do agente o turno do
+handoff → etapa `Chamada de ferramenta` → `registrar_interesse_crm` →
+`detail.args`. O `telefone` tem que ser o número da conversa no formato
+`+55…`. E o `output` (resposta do CRM) tem que trazer `criado: false` — é a
+prova de que ela reencontrou o lead do n8n em vez de criar outro.
 
-Como conferir: numa conversa real, olhe no CRM o `externalRef` do lead criado
-pelo n8n e compare com o `conversa_id` que a Wendy mandou (Logs do agente →
-etapa `Chamada de ferramenta` → `detail.args`).
+Na tela de Leads o efeito é **um lead só**, que saiu de NOVO para QUALIFICADO
+e ganhou a nota da Wendy abaixo da nota do n8n.
 
-- **Batem** → nada a fazer.
-- **Não batem** → no nó "Monta o lead" do n8n, troque `p.id` por `p.display_id`
-  na linha do `conversaId`. Está marcada com comentário.
+Se o `args.telefone` vier vazio, `{{…}}` ou um número diferente do da conversa,
+o prompt no ar não é o v1.3 ou a ferramenta ainda declara `conversa_id` em vez
+de `telefone` — confira `agent_get` e a aba Ferramentas.
 
-Enquanto não bater, a integração **não quebra** — cai no casamento por telefone.
-Só fica menos precisa.
+**Sobre os números de conversa que não batem:** o payload do Chatwoot traz
+`id: 6` (por conta) e os Logs do painel do agente mostram `#110`. Não importa
+para nada agora — a correlação não usa esse número.
 
 ### 4.4 Playground e produção
 
@@ -293,8 +304,10 @@ não para validar a gravação.
 ## Troubleshooting
 
 ### `criado: true` quando devia ser `false`
-A correlação falhou. Ou o `conversa_id` não chegou (veja `detail.args` no log do
-agente), ou ele não bate com o `externalRef` — passo 4.3.
+A correlação falhou: o `telefone` não chegou, chegou como `{{…}}`, ou não é o
+número da conversa (veja `detail.args` no log do agente) — passo 4.3. Foi
+exatamente o sintoma em 10/09, quando a chave ainda era `conversa_id`: segundo
+lead, sem telefone, QUALIFICADO.
 
 ### `401 Não autorizado`
 Token errado, ausente, ou slug errado na URL. As três respondem igual de
