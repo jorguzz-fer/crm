@@ -314,6 +314,15 @@ Token errado, ausente, ou slug errado na URL. As três respondem igual de
 propósito: esta rota não conta quais tenants existem. Confira o token em
 Configurações → Integrações e o `wowmais` na URL.
 
+### `400 Não consegui ler os dados enviados`
+O corpo da requisição **não é JSON válido**. Não é o modelo: o `args` no log
+do agente pode estar perfeito e ainda assim a plataforma montar um corpo
+quebrado. Aconteceu em 10/09 logo depois de editar o corpo da ferramenta à
+mão para incluir o `telefone` — uma vírgula. Conserto: na ferramenta, "Editar
+como JSON", apagar tudo e colar o JSON inteiro de novo (está em
+`wendy/ferramenta-crm.md`). Se o corpo estiver no modo de campos chave/valor
+em vez de JSON, trocar para JSON — a rota só lê JSON.
+
 ### `400 Dados inválidos para registrar o interesse`
 O agente mandou um campo fora do formato — quase sempre `situacao` com um valor
 que não é `qualificado`/`em_contato`/`desqualificado`. Veja `detail.args` no log.
