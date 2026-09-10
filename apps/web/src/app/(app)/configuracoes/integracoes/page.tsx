@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { headers } from "next/headers";
 import { generatePublicApiToken } from "@/lib/publicApiToken";
 import { N8nIntegration } from "./N8nIntegration";
+import { AgentIntegration } from "./AgentIntegration";
 import { WebsiteSnippet } from "./WebsiteSnippet";
 import { CsvImport } from "./CsvImport";
 
@@ -28,6 +29,9 @@ export default async function IntegracoesPage() {
   const host       = h.get("host") ?? "localhost:3000";
   const origin     = `${proto}://${host}`;
   const webhookUrl = `${origin}/api/public/leads`;
+  // O slug vai na URL porque o corpo de uma ferramenta de agente não carrega
+  // constante — só o que o modelo gera como argumento.
+  const agentUrl   = `${origin}/api/public/agent/${tenant.slug}/lead`;
 
   const apiToken = generatePublicApiToken(tenantId);
 
@@ -54,6 +58,18 @@ export default async function IntegracoesPage() {
           apiToken={apiToken}
           tenantSlug={tenant.slug}
         />
+      </section>
+
+      {/* Agente de atendimento por IA */}
+      <section className="space-y-4">
+        <div className="border-b border-border pb-2">
+          <h2 className="text-base font-semibold">Agente de atendimento por IA</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Deixe o agente registrar aqui o interesse de quem ele atende — persona,
+            produto e contexto — em cima do lead que o webhook da conversa já criou.
+          </p>
+        </div>
+        <AgentIntegration agentUrl={agentUrl} apiToken={apiToken} />
       </section>
 
       {/* Formulário do site */}

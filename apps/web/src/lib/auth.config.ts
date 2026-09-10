@@ -18,6 +18,10 @@ export const PUBLIC_PATHS = [
   "/api/extension",
   // Formulários públicos e integrações server-to-server (n8n/Make/Zapier)
   // Autenticado por tenantSlug + token HMAC por tenant (gerado a partir do AUTH_SECRET).
+  //   - /api/public/leads          → tenantSlug no corpo; token exigido fora de WEBSITE
+  //   - /api/public/agent/:slug/*  → tenant no CAMINHO e token SEMPRE no header,
+  //     porque quem chama é ferramenta de agente de IA e o corpo dela só carrega
+  //     argumento gerado pelo modelo (nem constante, nem variável de contexto).
   "/api/public",
   // Página pública de status de exclusão de dados (acessada via código de protocolo)
   "/dados",
