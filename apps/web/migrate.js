@@ -100,6 +100,14 @@ const MIGRATIONS = [
     name: "0018_platform_admin",
     check: `SELECT COUNT(*)::int AS cnt FROM information_schema.columns WHERE table_schema='public' AND table_name='User' AND column_name='isPlatformAdmin'`,
   },
+  {
+    // 0019 adiciona Lead.externalRef (+ índices de deduplicação).
+    // ⚠️ Toda migration nova PRECISA entrar nesta lista — pasta sem entrada
+    // aqui não é aplicada em produção e o app sobe quebrado. O teste
+    // src/__tests__/migrateRegistry.test.ts falha quando isso acontece.
+    name: "0019_lead_external_ref",
+    check: `SELECT COUNT(*)::int AS cnt FROM information_schema.columns WHERE table_schema='public' AND table_name='Lead' AND column_name='externalRef'`,
+  },
 ];
 
 /**

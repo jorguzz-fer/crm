@@ -52,12 +52,43 @@ Wendy esquecer de chamar a ferramenta, perde-se o enriquecimento — nunca o lea
 
 ### 1.1 Migration
 
-```bash
-pnpm --filter @crm/db exec prisma migrate deploy
+Em produção **não se roda `prisma migrate deploy`**. O container aplica as
+migrations sozinho na subida: `entrypoint.sh` → `apps/web/migrate.js`, que
+percorre a lista fixa `MIGRATIONS` e aplica o que faltar. Basta o **deploy
+(ou restart) no Coolify** depois do merge.
+
+A `0019_lead_external_ref` cria a coluna `Lead.externalRef` e os índices de
+deduplicação. Não-breaking — coluna nova opcional.
+
+**Conferir que aplicou:** nos logs do container deve aparecer
+`→ Aplicando 0019_lead_external_ref...` seguido de `✓ 0019_lead_external_ref aplicada`
+(ou `já aplicada` nas subidas seguintes). Ou, pelo navegador:
+
+```
+https://crm.tudomudou.com.br/api/health/migrations?secret=<CRON_SECRET>
 ```
 
-Aplica `0019_lead_external_ref`: coluna `Lead.externalRef` e os índices de
-deduplicação. Não-breaking — coluna nova opcional.
+→ `"0019_lead_external_ref": true`.
+
+⚠️ **Toda migration nova precisa de uma entrada em `apps/web/migrate.js`.**
+Pasta sem entrada na lista é silenciosa: a subida imprime "todas as migrations
+concluídas", a coluna não existe e o primeiro request que a toca dá **500** —
+e como o `Lead` é lido em quase toda tela, o CRM inteiro mostra "Algo deu
+errado". Foi o que aconteceu em 10/09/2026. O teste
+`apps/web/src/__tests__/migrateRegistry.test.ts` agora falha no CI quando isso
+acontece.
+
+**Se o deploy já subiu sem a migration** e você precisa do CRM de pé agora, o
+SQL é idempotente e pode ser aplicado à mão no Postgres (Coolify → banco →
+terminal `psql`), sem esperar novo deploy:
+
+```sql
+ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "externalRef" TEXT;
+CREATE INDEX IF NOT EXISTS "Lead_tenantId_externalRef_idx" ON "Lead"("tenantId", "externalRef");
+CREATE INDEX IF NOT EXISTS "Lead_tenantId_phone_idx"       ON "Lead"("tenantId", "phone");
+```
+
+O `migrate.js` da próxima subida vê a coluna e marca como já aplicada.
 
 ### 1.2 Pegar as credenciais
 
