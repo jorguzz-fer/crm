@@ -21,14 +21,22 @@ let dbReady = false;
 
 async function ensureTable() {
   if (dbReady) return;
+  // Uma instrução por chamada. O Prisma manda $executeRawUnsafe como prepared
+  // statement, e o Postgres recusa dois comandos num só (42601: "cannot insert
+  // multiple commands into a prepared statement"). Com as duas instruções na
+  // mesma string isto falhava em TODA chamada, o catch abaixo é fail-open, e o
+  // rate limit — do login inclusive — nunca valeu em produção (visto nos logs
+  // em 2026-09-10).
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "RateLimitHit" (
       "id"    SERIAL PRIMARY KEY,
       "key"   TEXT      NOT NULL,
       "hitAt" TIMESTAMP NOT NULL DEFAULT NOW()
-    );
+    )
+  `);
+  await prisma.$executeRawUnsafe(`
     CREATE INDEX IF NOT EXISTS "RateLimitHit_key_hitAt_idx"
-      ON "RateLimitHit"("key", "hitAt");
+      ON "RateLimitHit"("key", "hitAt")
   `);
   dbReady = true;
 }
