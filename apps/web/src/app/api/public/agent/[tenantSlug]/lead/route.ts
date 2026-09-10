@@ -64,7 +64,10 @@ const agentLeadSchema = z.object({
   resumo: z.string().max(4000).optional(),
   proximo_passo: z.string().max(500).optional(),
   situacao: z.enum(["qualificado", "em_contato", "desqualificado"]).optional(),
-  // O agente copia daqui o {{conversation_id}} que o prompt dele resolve.
+  // Reserva. A plataforma fazer.ai NÃO expõe o id da conversa ao prompt
+  // (testado em 2026-09-10: a variável ficava literal e o modelo a copiava);
+  // a chave real é `telefone`, que o prompt expõe e o CRM deduplica. Fica
+  // aceito para o dia em que o id existir — casa por sufixo com o externalRef.
   conversa_id: z.union([z.number(), z.string().max(60)]).optional(),
   agente: z.string().max(60).optional(),
 });
