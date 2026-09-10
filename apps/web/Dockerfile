@@ -71,6 +71,12 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Fuso das datas formatadas no servidor (timeline do lead, dashboard, exports).
+# 53 chamadas de toLocaleDateString em 27 arquivos rodam em Server Components
+# e usavam o fuso do container (UTC): a timeline mostrava 18:43 para uma nota
+# das 15:43 em São Paulo. O Node traz o próprio banco de fusos via ICU — não
+# precisa de tzdata no Alpine. O banco continua em UTC; isto é só exibição.
+ENV TZ=America/Sao_Paulo
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
